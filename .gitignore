@@ -1,0 +1,18 @@
+test/
+venv/
+.env
+
+# --- Terraform ---
+# Ignore the local state directory and files (regardless of location)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+# Ignore sensitive variable definitions
+*.tfvars
+!example.tfvars
+
+terraform/state/
+
+# --- Ansible ---
+ansible/.vault_pass
+ansible/vars/secrets.yml

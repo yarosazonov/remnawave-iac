@@ -1,0 +1,186 @@
+---
+- name: Configure VPN Nodes
+  hosts: remna_nodes   # Targets the group defined in hosts.ini
+  become: true       # "sudo" - Execute everything as root
+
+# Load the Vault
+  vars_files:
+    - ../vars/secrets.yml
+# sys_ssh_key
+# panel_cert
+
+# VARIABLES: Define your configuration data here
+  vars:
+    # Docker Architecture Mapping
+    # Maps 'amd64' (Ansible) to 'amd64' (Docker repo) or 'aarch64' to 'arm64'
+    docker_arch_map:
+      x86_64: amd64
+      aarch64: arm64
+
+  tasks:
+    # --- PHASE 0: PREP ---
+    - name: Parse Hostname Details
+      ansible.builtin.set_fact:
+        # 1. Get "fr" (Index 2)
+        derived_subdomain: "{{ inventory_hostname.split('-')[2] }}"
+        
+        # 2. Get "FR" (Index 2 -> Uppercase)
+        derived_country: "{{ inventory_hostname.split('-')[2] | upper }}"
+        
+        # 3. Get "fr-0" (Index 2 + '-' + Index 3)
+        derived_node_name: "{{ inventory_hostname.split('-')[2] }}-{{ inventory_hostname.split('-')[3] }}"
+
+    # --- PHASE 1: SYSTEM BASE ---
+    - name: Update and upgrade apt packages
+      ansible.builtin.apt:
+        update_cache: yes
+        upgrade: 'yes'
+        cache_valid_time: 3600
+
+    - name: Install dependencies
+      ansible.builtin.apt:
+        name:
+          - sudo
+          - ufw
+          - curl
+          - gnupg
+          - lsb-release
+          - ca-certificates
+          - logrotate
+        state: present
+
+    # --- PHASE 2: DOCKER INSTALLATION (Official Method) ---
+    - name: Create keyrings directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker GPG key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/debian/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+
+    - name: Add Docker Repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ docker_arch_map[ansible_architecture] }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+
+    - name: Install Docker Engine
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Add user to Docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    # --- PHASE 3: SECURITY & NETWORK ---
+    - name: Configure Public Firewall Rules (Web/SSH)
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '22'
+        - '80'
+        - '443'
+
+    - name: Allow Panel Communication from Trusted IP
+      community.general.ufw:
+        rule: allow
+        port: "{{ node_port }}"
+        proto: tcp
+        from_ip: "{{ panel_ip }}" 
+        comment: "Allow only panel server to access"
+
+    - name: Enable UFW
+      community.general.ufw:
+        state: enabled
+        policy: deny
+
+    # --- PHASE 4: APP SETUP ---
+    - name: Create Application Directory
+      ansible.builtin.file:
+        path: /opt/remnanode
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Generate .env from Template
+      ansible.builtin.template:
+        src: ../templates/node/env.j2          # Read local template
+        dest: /opt/remnanode/.env      # Write to remote server
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0600'                   # Secure permissions (Read-only for owner)
+
+    - name: Copy docker-compose.yml
+      ansible.builtin.copy:
+        src: ../files/node/docker-compose.yml  # Read local file
+        dest: /opt/remnanode/docker-compose.yml
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+
+    - name: Deploy Docker Compose Stack
+      community.docker.docker_compose_v2:
+        project_src: /opt/remnanode
+        state: present
+        pull: always # Ensures you always get the latest image version
+      register: compose_output
+
+    - name: Show Deployment Status
+      ansible.builtin.debug:
+        var: compose_output.actions
+
+    # --- PHASE 5: LOGGING & MONITORING ---
+    
+    # 1. Create the log folder with correct ownership
+    # This prevents "Permission Denied" errors when your app tries to start.
+    - name: Create App Log Directory
+      ansible.builtin.file:
+        path: /var/log/remnanode
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    # 2. Deploy the rotation logic
+    - name: Configure Logrotate for RemnaNode
+      ansible.builtin.copy:
+        dest: /etc/logrotate.d/remnanode
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          /var/log/remnanode/*.log {
+              size 50M
+              rotate 5
+              compress
+              missingok
+              notifempty
+              copytruncate
+              su {{ ansible_user }} {{ ansible_user }}
+          }
+
+    # --- PHASE 6: REBOOT ---
+    - name: Reboot the server
+      ansible.builtin.reboot:
+        msg: "Rebooting to apply all updates"
+        connect_timeout: 5
+        reboot_timeout: 600
+        pre_reboot_delay: 1
+        post_reboot_delay: 30
+        test_command: whoami
