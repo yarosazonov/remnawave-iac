@@ -91,6 +91,13 @@ resource "vultr_instance" "nodes" {
 
   # Inject your script
   user_data = data.template_file.user_data.rendered
+
+  # Ignore changes to user_data to avoid recreation of the all the nodes when bootstrap script changes
+  lifecycle {
+    ignore_changes = [
+      user_data
+    ]
+  }
 }
 
 # 2. Cloudflare Records (Iterate over the CREATED INSTANCES)

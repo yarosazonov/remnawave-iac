@@ -21,11 +21,17 @@ case "$1" in
     destroy)
         MODE="destroy"
         ;;
+    reboot)
+        MODE="apply"
+        REBOOT_FLAG="true"
+        ;;
     "")
+        MODE="apply"
+        REBOOT_FLAG="false"
         ;;
     *)
         echo "❌ ERROR: Unknown argument '$1'"
-        echo "Usage: $0 [destroy]"
+        echo "Usage: $0 [destroy|reboot]"
         exit 1
         ;;
 esac
@@ -195,7 +201,8 @@ ansible-playbook ./playbooks/node-configure.yml \
   -e "node_api_port=$NODE_API_PORT" \
   -e "panel_ip=$PANEL_IP" \
   -e "panel_cert=$PANEL_CERT" \
-  -e "monitoring_ip=$MONITORING_IP"
+  -e "monitoring_ip=$MONITORING_IP" \
+  -e "reboot_nodes=$REBOOT_FLAG"
 echo ""
 echo "🎉 DEPLOYMENT SUCCESSFUL!"
 echo "   Nodes Deployed:"
