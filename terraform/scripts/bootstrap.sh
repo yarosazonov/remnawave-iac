@@ -5,12 +5,13 @@ set -e
 # The Automation User (Service Account)
 ANSIBLE_USER="${ansible_username}"
 ANSIBLE_SSH_KEY="${ansible_pub_key}"
+ANSIBLE_ALLOWED_IP="${ansible_allowed_ip}"
 
 # The Human Admin User
 ADMIN_USER="${admin_username}"
 ADMIN_SSH_KEY="${admin_pub_key}"
 
-# 1. Update & Install Python
+# 1. Update & Install Python, Sudo
 apt-get update
 apt-get install -y python3 sudo
 
@@ -50,12 +51,23 @@ chmod 0440 "/etc/sudoers.d/$ADMIN_USER"
 rm -f /etc/ssh/sshd_config.d/*cloud*
 
 # Create our own SSH security configuration file
-cat > /etc/ssh/sshd_config.d/10-security.conf << 'EOF'
+cat > /etc/ssh/sshd_config.d/10-security.conf << EOF
 # Disable password authentication
 PasswordAuthentication no
 # Disable root login
 PermitRootLogin no
 EOF
+
+# --- SSH User Restriction (SSHD Level) ---
+if [ -n "$ANSIBLE_ALLOWED_IP" ] && [ "$ANSIBLE_ALLOWED_IP" != "0.0.0.0/0" ]; then
+    echo "🔐 Restricting SSH for user '$ANSIBLE_USER' to IP: $ANSIBLE_ALLOWED_IP"
+    # Allow Admin from ANY, Ansible from IP
+    echo "AllowUsers $ADMIN_USER $ANSIBLE_USER@$ANSIBLE_ALLOWED_IP" >> /etc/ssh/sshd_config.d/10-security.conf
+else
+    echo "🌍 Allowing SSH for '$ANSIBLE_USER' from ANY"
+    # Allow both from ANY
+    echo "AllowUsers $ADMIN_USER $ANSIBLE_USER" >> /etc/ssh/sshd_config.d/10-security.conf
+fi
 
 # Apply proper permissions
 chmod 644 /etc/ssh/sshd_config.d/10-security.conf

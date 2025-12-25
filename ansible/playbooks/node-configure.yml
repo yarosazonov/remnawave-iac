@@ -3,11 +3,11 @@
   hosts: remna_nodes   # Targets the group defined in hosts.ini
   become: true       # "sudo" - Execute everything as root
 
-# Load the Vault
-  vars_files:
-    - ../vars/secrets.yml
-# sys_ssh_key
-# panel_cert
+# # Load the Vault
+#   vars_files:
+#     - ../vars/secrets.yml
+# # sys_ssh_key
+# # panel_cert
 
 # VARIABLES: Define your configuration data here
   vars:
@@ -18,18 +18,6 @@
       aarch64: arm64
 
   tasks:
-    # --- PHASE 0: PREP ---
-    - name: Parse Hostname Details
-      ansible.builtin.set_fact:
-        # 1. Get "fr" (Index 2)
-        derived_subdomain: "{{ inventory_hostname.split('-')[2] }}"
-        
-        # 2. Get "FR" (Index 2 -> Uppercase)
-        derived_country: "{{ inventory_hostname.split('-')[2] | upper }}"
-        
-        # 3. Get "fr-0" (Index 2 + '-' + Index 3)
-        derived_node_name: "{{ inventory_hostname.split('-')[2] }}-{{ inventory_hostname.split('-')[3] }}"
-
     # --- PHASE 1: SYSTEM BASE ---
     - name: Update and upgrade apt packages
       ansible.builtin.apt:
@@ -40,7 +28,6 @@
     - name: Install dependencies
       ansible.builtin.apt:
         name:
-          - sudo
           - ufw
           - curl
           - gnupg
@@ -49,7 +36,9 @@
           - logrotate
         state: present
 
-    # --- PHASE 2: DOCKER INSTALLATION (Official Method) ---
+
+
+    # --- PHASE 2: DOCKER INSTALLATION ---
     - name: Create keyrings directory
       ansible.builtin.file:
         path: /etc/apt/keyrings
@@ -85,8 +74,21 @@
         groups: docker
         append: yes
 
+
+
     # --- PHASE 3: SECURITY & NETWORK ---
-    - name: Configure Public Firewall Rules (Web/SSH)
+    - name: Configure UFW Default Incoming
+      community.general.ufw:
+        direction: incoming
+        policy: deny
+        state: enabled
+
+    - name: Configure UFW Default Outgoing
+      community.general.ufw:
+        direction: outgoing
+        policy: allow
+
+    - name: Configure basic Firewall Rules (SSH, Web)
       community.general.ufw:
         rule: allow
         port: "{{ item }}"
@@ -96,20 +98,18 @@
         - '80'
         - '443'
 
-    - name: Allow Panel Communication from Trusted IP
+    # Node_api_port and panel_ip are passed via -e from node-deploy.sh
+    - name: Allow Node API Port (from Panel IP only)
       community.general.ufw:
         rule: allow
-        port: "{{ node_port }}"
+        port: "{{ node_api_port }}"
         proto: tcp
-        from_ip: "{{ panel_ip }}" 
-        comment: "Allow only panel server to access"
+        from_ip: "{{ panel_ip }}"
+      when: node_api_port is defined and panel_ip is defined
 
-    - name: Enable UFW
-      community.general.ufw:
-        state: enabled
-        policy: deny
 
-    # --- PHASE 4: APP SETUP ---
+
+    # --- PHASE 4: NODE SETUP ---
     - name: Create Application Directory
       ansible.builtin.file:
         path: /opt/remnanode
@@ -120,15 +120,15 @@
 
     - name: Generate .env from Template
       ansible.builtin.template:
-        src: ../templates/node/env.j2          # Read local template
-        dest: /opt/remnanode/.env      # Write to remote server
+        src: ../templates/node/env.j2  
+        dest: /opt/remnanode/.env      
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
-        mode: '0600'                   # Secure permissions (Read-only for owner)
+        mode: '0600'                   
 
     - name: Copy docker-compose.yml
       ansible.builtin.copy:
-        src: ../files/node/docker-compose.yml  # Read local file
+        src: ../files/node/docker-compose.yml  
         dest: /opt/remnanode/docker-compose.yml
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
@@ -138,12 +138,14 @@
       community.docker.docker_compose_v2:
         project_src: /opt/remnanode
         state: present
-        pull: always # Ensures you always get the latest image version
+        pull: always 
       register: compose_output
 
     - name: Show Deployment Status
       ansible.builtin.debug:
         var: compose_output.actions
+
+
 
     # --- PHASE 5: LOGGING & MONITORING ---
     
@@ -174,6 +176,110 @@
               copytruncate
               su {{ ansible_user }} {{ ansible_user }}
           }
+
+    # 3. cAdvisor Setup
+    - name: Create cAdvisor Directory
+      ansible.builtin.file:
+        path: /opt/cadvisor
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Create cAdvisor docker-compose.yml
+      ansible.builtin.copy:
+        src: ../files/cadvisor/docker-compose.yml
+        dest: /opt/cadvisor/docker-compose.yml
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+
+    - name: Deploy cAdvisor
+      community.docker.docker_compose_v2:
+        project_src: /opt/cadvisor
+        state: present
+        pull: always
+
+    # 4. Node Exporter Setup
+    - name: Create node_exporter user
+      ansible.builtin.user:
+        name: node_exporter
+        shell: /bin/false
+        create_home: no
+        system: yes
+
+    - name: Download Node Exporter
+      ansible.builtin.get_url:
+        url: "https://github.com/prometheus/node_exporter/releases/download/v1.10.2/node_exporter-1.10.2.linux-{{ docker_arch_map[ansible_architecture] }}.tar.gz"
+        dest: /tmp/node_exporter.tar.gz
+        mode: '0644'
+
+    - name: Uncompress Node Exporter
+      ansible.builtin.unarchive:
+        src: /tmp/node_exporter.tar.gz
+        dest: /tmp
+        remote_src: yes
+        creates: "/tmp/node_exporter-1.10.2.linux-{{ docker_arch_map[ansible_architecture] }}"
+
+    - name: Install Node Exporter binary
+      ansible.builtin.copy:
+        src: "/tmp/node_exporter-1.10.2.linux-{{ docker_arch_map[ansible_architecture] }}/node_exporter"
+        dest: /usr/local/bin/node_exporter
+        remote_src: yes
+        owner: node_exporter
+        group: node_exporter
+        mode: '0755'
+
+    - name: Create Node Exporter Service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/node_exporter.service
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Node Exporter
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          User=node_exporter
+          Group=node_exporter
+          Type=simple
+          ExecStart=/usr/local/bin/node_exporter --collector.systemd
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable and Start Node Exporter
+      ansible.builtin.systemd:
+        name: node_exporter
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Cleanup Node Exporter temp files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/node_exporter.tar.gz
+        - "/tmp/node_exporter-1.10.2.linux-{{ docker_arch_map[ansible_architecture] }}"
+
+    # 5. Monitoring Firewall Rules
+    # Note: monitoring_ip is passed via -e from deploy-nodes.sh
+    - name: Allow Monitoring Ports (from Monitoring IP only)
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+        from_ip: "{{ monitoring_ip }}"
+      loop:
+        - '8090' # cAdvisor
+        - '9100' # Node Exporter
+      when: monitoring_ip is defined and monitoring_ip | length > 0
+
+
 
     # --- PHASE 6: REBOOT ---
     - name: Reboot the server

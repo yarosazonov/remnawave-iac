@@ -29,11 +29,12 @@ data "template_file" "user_data" {
   template = file("${path.module}/scripts/bootstrap.sh")
   vars = {
     admin_username = var.admin_username
-    admin_pub_key  = trimspace(file(pathexpand(var.admin_pub_key_path)))
+    admin_pub_key  = file("${var.admin_key_path}.pub")
 
     # Injected by node-deploy.sh
-    ansible_username = var.ansible_username
-    ansible_pub_key  = var.ansible_pub_key
+    ansible_username   = var.ansible_username
+    ansible_pub_key    = file("${var.ansible_key_path}.pub")
+    ansible_allowed_ip = var.ansible_allowed_ip
   }
 }
 
@@ -46,7 +47,7 @@ data "cloudflare_zone" "main" {
 # === PROVIDERS ===
 
 provider "restapi" {
-  uri                  = var.panel_api_base_url
+  uri                  = var.panel_api_url
   write_returns_object = true
   debug                = true
 
@@ -119,7 +120,7 @@ resource "restapi_object" "panel_nodes" {
     # "remna-node-jp-0" -> "jp-0"
     name    = format("%s-%s", split("-", each.key)[2], split("-", each.key)[3])
     address = each.value.main_ip
-    port    = var.node_port
+    port    = var.node_api_port
 
     # "remna-node-jp-0" -> "JP"
     countryCode = upper(split("-", each.key)[2])
@@ -137,6 +138,31 @@ resource "restapi_object" "panel_nodes" {
 
   # This tells Terraform: "The unique ID is in the 'uuid' field of the 'response' object"
   id_attribute = "response/uuid"
+
+  # FORCE REPLACEMENT ON CHANGE
+  # The API endpoint /api/nodes does not support standard REST PATCH /api/nodes/{id}
+  # It expects PATCH /api/nodes with ID in body. The provider does not support this.
+  lifecycle {
+    replace_triggered_by = [
+      terraform_data.node_config_hash[each.key]
+    ]
+    ignore_changes = [
+      data
+    ]
+  }
+}
+
+# Helper resource to track configuration changes and force replacement
+resource "terraform_data" "node_config_hash" {
+  for_each = var.nodes
+
+  input = jsonencode({
+    port            = var.node_api_port
+    config_profile  = var.config_profile_uuid
+    active_inbounds = var.active_inbounds
+    # Add other fields that might change and require replacement
+    vultr_id = vultr_instance.nodes[each.key].id
+  })
 }
 
 # Ansible inventory file generation
@@ -152,7 +178,7 @@ ${hostname} ansible_host=${node.main_ip}
 
 [remna_nodes:vars]
 ansible_user=${var.ansible_username} 
-ansible_ssh_private_key_file=${var.ansible_pub_key_path}
+ansible_ssh_private_key_file=${var.ansible_key_path}
 panel_ip=${var.panel_ip}
 EOT
 

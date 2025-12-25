@@ -16,7 +16,7 @@ variable "PANEL_API_TOKEN" {
   description = "Remna panel API token"
 }
 
-variable "panel_api_base_url" {
+variable "panel_api_url" {
   type        = string
   description = "Remna panel API base URL"
 }
@@ -26,9 +26,10 @@ variable "panel_ip" {
   description = "Remna panel IP"
 }
 
-variable "node_port" {
+variable "node_api_port" {
   type        = number
-  description = "Remna node port"
+  description = "Remna node API port"
+  default     = 2233
 }
 
 variable "config_profile_uuid" {
@@ -45,28 +46,27 @@ variable "active_inbounds" {
 variable "admin_username" {
   description = "Username for the admin account that would be created durin provisioning"
   type        = string
+  default     = "admin"
 }
 
-variable "admin_pub_key_path" {
-  description = "Path to the personal public ssh key. It will be injected alongside with automatically generated ansible_key"
+variable "admin_key_path" {
+  description = "Path to the personal ssh key. Public key will be injected alongside with automatically generated ansible_key"
   type        = string
 }
 
 variable "ansible_username" {
   description = "Username for the ansible account that would be created durin provisioning"
   type        = string
-  default     = ""
+  default     = "ansible_automaton"
 }
 
-variable "ansible_pub_key_path" {
-  description = "Path to the ansible public ssh key."
+variable "ansible_key_path" {
+  description = "Path to the ansible ssh key. Public key will be injected alongside with automatically generated ansible_key"
   type        = string
-  default     = ""
 }
 
-# This will be populated by TF_VAR_ansible_public_key from node-deploy.sh
-variable "ansible_pub_key" {
-  description = "Public key for the automated ansible user"
+variable "ansible_allowed_ip" {
+  description = "IP from which the Ansible user is allowed SSH access on port 22 (configured during bootstrap). Leave empty to allow from Any."
   type        = string
   default     = ""
 }
