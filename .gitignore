@@ -1,19 +1,17 @@
-venv/
+.venv/
 .env
 
 # --- Terraform ---
-# Ignore the local state directory and files (regardless of location)
 **/.terraform/
 terraform/state/
 *.tfstate
 *.tfstate.*
 *.tfvars
-!example.tfvars
 
 # --- Ansible ---
-ansible/.vault_pass
-ansible/vars/secrets.yml
-ansible/inventory/
+configuration/inventory/
+.ansible/
+ops/.ansible/
 
 # --- General/Misc ---
 __pycache__/

@@ -1,0 +1,19 @@
+# Define the fleet here
+# ams: Amsterdam: NL
+# itm: Osaka: JP
+# nrt: Tokyo: JP
+# ewr: New Jersey: US
+# bom: Mumbai: IN
+
+# vc2-1c-1gb: 1024: 5
+# vhf-1c-1gb: 1024: 6
+# vhp-1c-1gb-amd: 2048: 6
+# vhp-1c-1gb-intel: 2048: 6
+
+nodes_vultr = {
+  "remna-node-nl-0" = { region = "ams", plan = "vhp-1c-1gb-intel" } # Amsterdam 
+  "remna-node-nl-1" = { region = "ams", plan = "vhp-1c-1gb-intel" } # Amsterdam 
+  "remna-node-jp-0" = { region = "nrt", plan = "vhp-1c-1gb-intel" } # Tokyo
+  "remna-node-us-0" = { region = "ewr", plan = "vhp-1c-1gb-intel" } # New Jersey
+  "remna-node-in-0" = { region = "bom", plan = "vhp-1c-1gb-intel" } # Mumbai
+}

@@ -1,0 +1,28 @@
+---
+- name: Wait for Connectivity
+  hosts: remna_nodes
+  gather_facts: false
+  tasks:
+    - name: Wait for SSH to be available
+      ansible.builtin.wait_for_connection:
+        delay: 0
+        timeout: 180
+        connect_timeout: 2
+        sleep: 1
+
+- name: Configure VPN Nodes
+  hosts: remna_nodes
+  become: true
+
+  # Global Variables
+  vars:
+    docker_arch_map:
+      x86_64: amd64
+      aarch64: arm64
+
+  roles:
+    - common
+    - docker
+    - remna_node
+    - node_exporter
+    - reboot

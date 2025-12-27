@@ -1,4 +1,4 @@
-variable "nodes" {
+variable "nodes_vultr" {
   type = map(object({
     region = string
     plan   = optional(string, "vc2-1c-1gb") # Default to $5 plan
@@ -69,4 +69,9 @@ variable "ansible_allowed_ip" {
   description = "IP from which the Ansible user is allowed SSH access on port 22 (configured during bootstrap). Leave empty to allow from Any."
   type        = string
   default     = ""
+}
+
+variable "ansible_inventory_path" {
+  description = "Absolute path to the ansible inventory file"
+  type        = string
 }

@@ -1,0 +1,30 @@
+---
+- name: Create cAdvisor Directory
+  ansible.builtin.file:
+    path: /opt/cadvisor
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy cAdvisor docker-compose.yml
+  ansible.builtin.copy:
+    src: docker-compose.yml
+    dest: /opt/cadvisor/docker-compose.yml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy cAdvisor
+  community.docker.docker_compose_v2:
+    project_src: /opt/cadvisor
+    state: present
+    pull: missing
+
+- name: Allow cAdvisor Port (from Monitoring IP only)
+  community.general.ufw:
+    rule: allow
+    port: "8090"
+    proto: tcp
+    from_ip: "{{ monitoring_ip }}"
+  when: monitoring_ip is defined and monitoring_ip | length > 0

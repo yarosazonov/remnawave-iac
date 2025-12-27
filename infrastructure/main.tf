@@ -74,7 +74,7 @@ provider "cloudflare" {
 
 # 1. Vultr Instances (Iterate over var.nodes)
 resource "vultr_instance" "nodes" {
-  for_each = var.nodes
+  for_each = var.nodes_vultr
 
   # Hardware
   plan   = each.value.plan
@@ -161,7 +161,7 @@ resource "restapi_object" "panel_nodes" {
 
 # Helper resource to track configuration changes and force replacement
 resource "terraform_data" "node_config_hash" {
-  for_each = var.nodes
+  for_each = var.nodes_vultr
 
   input = jsonencode({
     port            = var.node_api_port
@@ -174,7 +174,7 @@ resource "terraform_data" "node_config_hash" {
 
 # Ansible inventory file generation
 resource "local_file" "ansible_inventory" {
-  filename = "${path.module}/../ansible/inventory/hosts.ini"
+  filename = var.ansible_inventory_path
 
   # Contents of the inventory file
   content = <<EOT
