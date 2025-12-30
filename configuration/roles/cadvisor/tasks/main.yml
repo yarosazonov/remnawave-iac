@@ -22,9 +22,11 @@
     pull: missing
 
 - name: Allow cAdvisor Port (from Monitoring IP only)
+  vars:
+    monitoring_ip: "{{ lookup('ansible.builtin.env', 'MONITORING_IP') | default('') }}"
   community.general.ufw:
     rule: allow
     port: "8090"
     proto: tcp
     from_ip: "{{ monitoring_ip }}"
-  when: monitoring_ip is defined and monitoring_ip | length > 0
+  when: monitoring_ip | length > 0

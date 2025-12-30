@@ -72,12 +72,12 @@
     - /tmp/node_exporter.tar.gz
     - "/tmp/node_exporter-1.10.2.linux-{{ docker_arch_map[ansible_facts['architecture']] }}"
 
-- name: Allow Monitoring Ports (from Monitoring IP only)
+- name: Allow Monitoring Port (from Monitoring IP only)
+  vars:
+    monitoring_ip: "{{ lookup('ansible.builtin.env', 'MONITORING_IP') | default('') }}"
   community.general.ufw:
     rule: allow
-    port: "{{ item }}"
+    port: "9100"
     proto: tcp
     from_ip: "{{ monitoring_ip }}"
-  loop:
-    - "9100" # Node Exporter
   when: monitoring_ip is defined and monitoring_ip | length > 0

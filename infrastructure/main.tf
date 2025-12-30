@@ -107,11 +107,11 @@ resource "cloudflare_dns_record" "dns" {
 
   zone_id = data.cloudflare_zone.main.id
 
-  # LOGIC: remna-node-jp-0 -> ["remna", "node", "jp", "0"] -> index 2 = "jp"
+  # remna-node-jp-0 -> ["remna", "node", "jp", "0"] -> index 2 = "jp"
   name    = split("-", each.value.hostname)[2]
   content = each.value.main_ip
   type    = "A"
-  comment = "Managed by terraform"
+  comment = "Managed by Terraform"
   ttl     = 300
   proxied = false
 }
@@ -167,7 +167,7 @@ resource "terraform_data" "node_config_hash" {
     port            = var.node_api_port
     config_profile  = var.config_profile_uuid
     active_inbounds = var.active_inbounds
-    # Add other fields that might change and require replacement
+    # Trigger replacement on change ensuring ip changes are picked up
     vultr_id = vultr_instance.nodes[each.key].id
   })
 }
@@ -192,7 +192,7 @@ EOT
   file_permission = "0644"
 }
 
-output "node_ips" {
+output "node_data" {
   description = "Map of Hostnames to Public IPs"
   value = {
     for key, instance in vultr_instance.nodes :

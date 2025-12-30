@@ -7,6 +7,7 @@ terraform/state/
 *.tfstate
 *.tfstate.*
 *.tfvars
+*.tfvars.json
 
 # --- Ansible ---
 configuration/inventory/
@@ -14,5 +15,6 @@ configuration/inventory/
 ops/.ansible/
 
 # --- General/Misc ---
+*.log
 __pycache__/
 *.retry
