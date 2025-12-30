@@ -13,7 +13,7 @@ flowchart TB
  subgraph Inputs_Layer["Configuration Inputs"]
     direction TB
         EnvVars[/"Variables<br>(env and tfvars.json)<br>"/]
-        TFVars[/"Nodes Definition<br>(nodes.tfvars)"/]
+        TFVars[/"Nodes Definition<br>(terraform.tfvars)"/]
   end
 
  subgraph Core_Execution["Terraform Apply Execution"]
