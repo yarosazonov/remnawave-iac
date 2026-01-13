@@ -1,0 +1,40 @@
+---
+- name: Authenticate (Login)
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/auth/login"
+    method: POST
+    body_format: json
+    headers:
+      Origin: "https://{{ panel_domain }}"
+      Referer: "https://{{ panel_domain }}/login"
+    body:
+      username: "{{ lookup('ansible.builtin.env', 'PANEL_ADMIN_USERNAME') | default('admin', true) }}"
+      password: "{{ lookup('ansible.builtin.env', 'PANEL_ADMIN_PASSWORD') }}"
+    status_code: [200, 201, 401, 403]
+    return_content: true
+  register: login_response
+  until: login_response.status != -1
+  retries: 60
+  delay: 1
+
+- name: Register if login failed
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/auth/register"
+    method: POST
+    body_format: json
+    headers:
+      Origin: "https://{{ panel_domain }}"
+      Referer: "https://{{ panel_domain }}/login"
+    body:
+      username: "{{ lookup('ansible.builtin.env', 'PANEL_ADMIN_USERNAME') | default('admin', true) }}"
+      password: "{{ lookup('ansible.builtin.env', 'PANEL_ADMIN_PASSWORD') }}"
+    status_code: [200, 201]
+    return_content: true
+  register: register_response
+  when: login_response.status is defined and login_response.status in [400, 401, 403, 500]
+  failed_when: register_response.status in [400, 403, 500]
+
+- name: Set authentication token
+  ansible.builtin.set_fact:
+    auth_token: "{{ login_response.json.response.accessToken if (login_response.status in [200, 201]) else register_response.json.response.accessToken | default('') }}"
+  when: (login_response.status in [200, 201]) or (register_response.status is defined and register_response.status in [200, 201])

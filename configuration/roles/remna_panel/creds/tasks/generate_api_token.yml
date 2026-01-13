@@ -1,0 +1,52 @@
+---
+- name: Get existing API tokens
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/tokens"
+    method: GET
+    headers:
+      Origin: "https://{{ panel_domain }}"
+      Referer: "https://{{ panel_domain }}/login"
+      Authorization: "Bearer {{ auth_token }}"
+      X-Remnawave-Client-Type: "browser"
+    status_code: 200
+  register: existing_tokens_response
+  retries: 5
+  delay: 3
+  until: existing_tokens_response.status == 200
+  when: auth_token | length > 0
+
+- name: Set existing token fact
+  ansible.builtin.set_fact:
+    existing_token: "{{ existing_tokens_response.json.response.apiKeys | first }}"
+  when: existing_tokens_response.status | default(-1) == 200 and existing_tokens_response.json.response.apiKeys | default([]) | length > 0
+
+- name: Generate API Token for Subscription Page
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/tokens"
+    method: POST
+    body_format: json
+    headers:
+      Origin: "https://{{ panel_domain }}"
+      Referer: "https://{{ panel_domain }}/login"
+      Authorization: "Bearer {{ auth_token }}"
+      X-Remnawave-Client-Type: "browser"
+    body:
+      tokenName: "ansible-generated"
+    status_code: 201
+  register: token_response
+  when: existing_token is not defined and auth_token | length > 0
+
+- name: Set API Token Fact from API
+  ansible.builtin.set_fact:
+    remnawave_api_token: "{{ token_response.json.response.token if (token_response.status | default(0) == 201) else existing_token.token }}"
+  when: (token_response is defined and token_response.status | default(0) == 201) or existing_token is defined
+
+- name: Write PANEL_API_TOKEN to local .env
+  ansible.builtin.lineinfile:
+    path: "{{ playbook_dir }}/../../.env"
+    regexp: "^PANEL_API_TOKEN="
+    line: "PANEL_API_TOKEN='{{ remnawave_api_token }}'"
+    create: true
+  delegate_to: localhost
+  become: false
+  when: remnawave_api_token is defined

@@ -1,0 +1,13 @@
+https://{{ panel_domain }} {
+        reverse_proxy * http://remnawave:3000
+}
+:443 {
+    tls internal
+    respond 204
+}
+
+{% if sub_domain | default('') | length > 0 %}
+https://{{ sub_domain }} {
+        reverse_proxy * http://remnawave-subscription-page:3010
+}
+{% endif %}

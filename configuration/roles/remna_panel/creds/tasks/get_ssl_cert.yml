@@ -1,0 +1,23 @@
+---
+- name: Get SSL_CERT
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/keygen"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ remnawave_api_token }}"
+    status_code: 200
+  register: ssl_cert_response
+  retries: 5
+  delay: 3
+  until: ssl_cert_response.status == 200
+  when: remnawave_api_token | length > 0
+
+- name: Write SSL_CERT to local .env
+  ansible.builtin.lineinfile:
+    path: "{{ playbook_dir }}/../../.env"
+    regexp: "^PANEL_CERT="
+    line: "PANEL_CERT='{{ ssl_cert_response.json.response.pubKey }}'"
+    create: true
+  delegate_to: localhost
+  become: false
+  when: ssl_cert_response is defined and ssl_cert_response.status == 200

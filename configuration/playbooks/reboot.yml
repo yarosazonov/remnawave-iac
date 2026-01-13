@@ -1,0 +1,19 @@
+---
+- name: Wait for Connectivity
+  hosts: "{{ target_hosts }}"
+  gather_facts: false
+  tasks:
+    - name: Wait for SSH to be available
+      ansible.builtin.wait_for_connection:
+        delay: 0
+        timeout: 180
+        connect_timeout: 2
+        sleep: 1
+
+- name: Reboot
+  hosts: "{{ target_hosts }}"
+  become: true
+  roles:
+    - reboot
+  vars:
+    reboot_infra: true

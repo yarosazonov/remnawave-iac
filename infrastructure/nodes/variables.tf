@@ -16,15 +16,11 @@ variable "PANEL_API_TOKEN" {
   description = "Remna panel API token"
 }
 
-variable "panel_api_url" {
+variable "panel_url" {
   type        = string
-  description = "Remna panel API base URL"
+  description = "Remna panel URL (including protocol, e.g. https://panel.example.com)"
 }
 
-variable "panel_ip" {
-  type        = string
-  description = "Remna panel IP"
-}
 
 variable "node_api_port" {
   type        = number

@@ -1,0 +1,30 @@
+---
+- name: Ensure subscription page directory exists
+  ansible.builtin.file:
+    path: /opt/remnawave/subscription
+    state: directory
+    mode: "0755"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Create subscription page .env file
+  ansible.builtin.template:
+    src: subscription.env.j2
+    dest: /opt/remnawave/subscription/.env
+    mode: "0600"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Create subscription page docker-compose.yml
+  ansible.builtin.copy:
+    src: docker-compose.yml
+    dest: /opt/remnawave/subscription/docker-compose.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Start Subscription Page Stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/remnawave/subscription
+    state: present
+    build: never

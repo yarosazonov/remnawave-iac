@@ -1,20 +1,29 @@
-.PHONY: help deploy deploy-reboot deploy-apply deploy-destroy
+.PHONY: help panel-deploy panel-reboot panel-destroy nodes-deploy nodes-reboot nodes-destroy
 
 help:
 	@echo "Available commands:"
-	@echo "  make deploy         - Full deployment (Terraform + Ansible)"
-	@echo "  make deploy-apply   - Infrastructure only (Terraform apply)"
-	@echo "  make deploy-reboot  - Reboot all nodes"
-	@echo "  make deploy-destroy - Destroy all infrastructure"
+	@echo "  make panel-deploy   - Deploy Panel (Terraform + Ansible)"
+	@echo "  make panel-reboot   - Reboot Panel"
+	@echo "  make panel-destroy  - Destroy Panel"
+	@echo "  make nodes-deploy   - Deploy Nodes (Terraform + Ansible)"
+	@echo "  make nodes-reboot   - Reboot Nodes"
+	@echo "  make nodes-destroy  - Destroy Nodes"
 
-deploy:
-	.venv/bin/python orchestration/deploy.py
+panel-deploy:
+	.venv/bin/python orchestration/deploy.py panel deploy
 
-deploy-reboot:
-	.venv/bin/python orchestration/deploy.py reboot
+panel-reboot:
+	.venv/bin/python orchestration/deploy.py panel reboot
 
-deploy-apply:
-	.venv/bin/python orchestration/deploy.py apply
+panel-destroy:
+	.venv/bin/python orchestration/deploy.py panel destroy
 
-deploy-destroy:
-	.venv/bin/python orchestration/deploy.py destroy
+nodes-deploy:
+	.venv/bin/python orchestration/deploy.py nodes deploy
+
+nodes-reboot:
+	.venv/bin/python orchestration/deploy.py nodes reboot
+
+nodes-destroy:
+	.venv/bin/python orchestration/deploy.py nodes destroy
+

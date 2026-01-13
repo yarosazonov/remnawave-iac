@@ -26,7 +26,7 @@ terraform {
 
 # Bootstrap script
 data "template_file" "user_data" {
-  template = file("${path.module}/scripts/bootstrap.sh")
+  template = file("${path.module}/../scripts/bootstrap.sh")
   vars = {
     admin_username = var.admin_username
     admin_pub_key  = file("${var.admin_key_path}.pub")
@@ -47,7 +47,7 @@ data "cloudflare_zone" "main" {
 # === PROVIDERS ===
 
 provider "restapi" {
-  uri                  = var.panel_api_url
+  uri                  = "${var.panel_url}/api"
   write_returns_object = true
   debug                = true
 
@@ -85,7 +85,7 @@ resource "vultr_instance" "nodes" {
   label    = each.key
   hostname = each.key
 
-  tags        = ["remnawave", "auto-deploy"]
+  tags        = ["auto-deploy", "remnawave", "node"]
   enable_ipv6 = true
   backups     = "disabled"
 
@@ -186,7 +186,6 @@ ${hostname} ansible_host=${node.main_ip}
 [remna_nodes:vars]
 ansible_user=${var.ansible_username} 
 ansible_ssh_private_key_file=${var.ansible_key_path}
-panel_ip=${var.panel_ip}
 EOT
 
   file_permission = "0644"

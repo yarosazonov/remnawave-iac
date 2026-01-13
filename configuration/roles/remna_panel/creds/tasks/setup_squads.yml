@@ -1,0 +1,63 @@
+---
+# Requires: panel_api_token, inbound_uuids
+
+- name: Get Existing Squads
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/internal-squads"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ panel_api_token }}"
+    status_code: 200
+  register: squads_response
+  retries: 5
+  delay: 3
+  until: squads_response.status == 200
+
+# Default-Squad update (assign first inbound - port 443)
+- name: Get Default-Squad
+  ansible.builtin.set_fact:
+    default_squad: "{{ squads_response.json.response.internalSquads | selectattr('name', 'equalto', 'Default-Squad') | list | first | default(None) }}"
+
+- name: Update Default-Squad with first inbound
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/internal-squads"
+    method: PATCH
+    body_format: json
+    headers:
+      Authorization: "Bearer {{ panel_api_token }}"
+    body:
+      uuid: "{{ default_squad.uuid }}"
+      inbounds:
+        - "{{ inbound_uuids | first }}"
+    status_code: 200
+  register: update_default_squad_response
+  retries: 5
+  delay: 3
+  until: update_default_squad_response.status == 200
+  when: default_squad is not none
+
+# Admin-Squad creation
+- name: Check if Admin-Squad exists
+  ansible.builtin.set_fact:
+    existing_admin_squad: "{{ squads_response.json.response.internalSquads | selectattr('name', 'equalto', 'Admin-Squad') | list | first | default(None) }}"
+
+- name: Create Admin-Squad
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/internal-squads"
+    method: POST
+    body_format: json
+    headers:
+      Authorization: "Bearer {{ panel_api_token }}"
+    body:
+      name: "Admin-Squad"
+      inbounds: "{{ inbound_uuids }}"
+    status_code: 201
+  register: create_squad_response
+  retries: 5
+  delay: 3
+  until: create_squad_response.status == 201
+  when: existing_admin_squad is none
+
+- name: Set Admin-Squad UUID
+  ansible.builtin.set_fact:
+    admin_squad_uuid: "{{ existing_admin_squad.uuid if existing_admin_squad is not none else create_squad_response.json.response.uuid }}"

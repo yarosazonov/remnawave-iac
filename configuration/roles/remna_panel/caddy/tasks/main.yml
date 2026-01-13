@@ -1,0 +1,28 @@
+---
+- name: Ensure Caddy directory exists
+  ansible.builtin.file:
+    path: /opt/remnawave/caddy
+    state: directory
+    mode: "0755"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Create Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /opt/remnawave/caddy/Caddyfile
+    mode: "0644"
+
+- name: Create Caddy docker-compose.yml
+  ansible.builtin.copy:
+    src: docker-compose.yml
+    dest: /opt/remnawave/caddy/docker-compose.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Start Caddy Stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/remnawave/caddy
+    state: present
+    build: never

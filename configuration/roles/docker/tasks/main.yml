@@ -1,4 +1,14 @@
 ---
+- name: Install Docker prerequisites
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gnupg
+      - lsb-release
+      - ca-certificates
+    state: present
+    update_cache: true
+
 - name: Create keyrings directory
   ansible.builtin.file:
     path: /etc/apt/keyrings
@@ -31,8 +41,9 @@
     state: present
     update_cache: true
 
-- name: Add user to Docker group
+- name: Add users to Docker group
   ansible.builtin.user:
-    name: "{{ ansible_user }}"
+    name: "{{ item }}"
     groups: docker
     append: true
+  loop: "{{ docker_users }}"

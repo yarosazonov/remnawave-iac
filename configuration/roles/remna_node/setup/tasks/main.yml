@@ -52,26 +52,3 @@
 - name: Show Deployment Status
   ansible.builtin.debug:
     var: compose_output.actions
-
-# Logrotate
-- name: Install logrotate
-  ansible.builtin.apt:
-    name: logrotate
-    state: present
-
-- name: Configure Logrotate for RemnaNode
-  ansible.builtin.copy:
-    dest: /etc/logrotate.d/remnanode
-    owner: root
-    group: root
-    mode: "0644"
-    content: |
-      /var/log/remnanode/*.log {
-          size 50M
-          rotate 5
-          compress
-          missingok
-          notifempty
-          copytruncate
-          su {{ ansible_user }} {{ ansible_user }}
-      }

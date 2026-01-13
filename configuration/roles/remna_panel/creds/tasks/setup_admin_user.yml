@@ -1,0 +1,44 @@
+---
+# Requires: panel_api_token, admin_squad_uuid
+
+- name: Set Admin Username
+  ansible.builtin.set_fact:
+    admin_username: "{{ lookup('env', 'PANEL_ADMIN_USERNAME') | default('admin', true) }}"
+
+- name: Get Existing Users
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/users"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ panel_api_token }}"
+    status_code: 200
+  register: users_response
+  retries: 5
+  delay: 3
+  until: users_response.status == 200
+
+- name: Check if admin user exists
+  ansible.builtin.set_fact:
+    admin_user_exists: "{{ users_response.json.response.users | selectattr('username', 'equalto', admin_username) | list | length > 0 }}"
+
+- name: Create Admin User
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/users"
+    method: POST
+    body_format: json
+    headers:
+      Authorization: "Bearer {{ panel_api_token }}"
+    body:
+      username: "{{ admin_username }}"
+      status: "ACTIVE"
+      trafficLimitStrategy: "MONTH"
+      trafficLimitBytes: 268435456000
+      expireAt: "2099-01-31T23:59:59.000Z"
+      activeInternalSquads:
+        - "{{ admin_squad_uuid }}"
+    status_code: 201
+  register: create_user_response
+  retries: 5
+  delay: 3
+  until: create_user_response.status == 201
+  when: not admin_user_exists

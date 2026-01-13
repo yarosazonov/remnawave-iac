@@ -1,5 +1,7 @@
-.venv/
 .env
+venv/
+.venv/
+.envrc
 
 # --- Terraform ---
 **/.terraform/

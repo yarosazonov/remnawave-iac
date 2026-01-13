@@ -1,6 +1,6 @@
 ---
 - name: Wait for Connectivity
-  hosts: remna_nodes
+  hosts: remnawave_panel
   gather_facts: false
   tasks:
     - name: Wait for SSH to be available
@@ -10,28 +10,27 @@
         connect_timeout: 2
         sleep: 1
 
-- name: Configure VPN Nodes
-  hosts: remna_nodes
+- name: Deploy Remnawave Panel
+  hosts: remnawave_panel
   become: true
 
-  # Global Variables
   vars:
     docker_arch_map:
       x86_64: amd64
       aarch64: arm64
+    # List of users to add to the docker group
     docker_users:
       - "{{ ansible_user }}"
       - "{{ lookup('ansible.builtin.env', 'ADMIN_USERNAME') | default('admin', true) }}"
 
   roles:
-    - role: ufw
-      vars:
-        ufw_open_ports:
-          - "80"
-          - "443"
-          - "8443"
+    # Default ufw setup (incoming/outgoing + ssh).
+    # 80 and 443 are managed by docker using iptables
+    - ufw
     - docker
-    - remna_node/setup
-    - remna_node/logrotate
-    - node_exporter
+    - remna_panel/setup
+    - remna_panel/caddy
+    - remna_panel/creds
+    - role: remna_panel/subpage
+      when: sub_domain | default('') | length > 0
     - reboot

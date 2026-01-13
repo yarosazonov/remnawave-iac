@@ -1,0 +1,36 @@
+---
+- name: Install UFW
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+  when: ufw_defaults | default(true)
+
+- name: Allow SSH
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+  when: ufw_defaults | default(true)
+
+- name: Configure UFW Default Outgoing
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
+  when: ufw_defaults | default(true)
+
+- name: Configure UFW Default Incoming
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+  when: ufw_defaults | default(true)
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+  when: ufw_defaults | default(true)
+
+- name: Configure basic Firewall Rules
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ ufw_open_ports | default([]) }}"
