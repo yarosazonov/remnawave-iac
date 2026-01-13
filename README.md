@@ -1,14 +1,24 @@
-# Remnawave nodes deploy automation
+# Remnawave IaC
 
-This repository contains the **Infrastructure as Code** setup for deploying and managing Remnawave nodes. It orchestrates **Terraform** and **Ansible** via a Python script, utilizing **Vultr** for compute and **Cloudflare** for DNS. 
+Infrastructure as Code setup for deploying and managing **Remnawave Panel and Nodes**. Orchestrates **Terraform** and **Ansible** via a Python script, using **Vultr** for compute and **Cloudflare** for DNS.
 
 ## 📂 Directory Structure
 
-- **`orchestration/`**: Contains the main `deploy.py` script that coordinates Terraform and Ansible.
-- **`infrastructure/`**: Terraform configurations for provisioning Vultr instances, Cloudflare DNS and Remna panel nodes entries.
-- **`configuration/`**: Ansible playbooks and roles for configuring the nodes.
-- **`docs/`**: Architecture flowcharts.
-- **`Makefile`**: Shortcuts for deployment commands.
+```
+ops/
+├── orchestration/      # deploy.py - main orchestration script
+├── infrastructure/
+│   ├── panel/          # Terraform for panel provisioning
+│   └── nodes/          # Terraform for nodes provisioning
+├── configuration/
+│   ├── playbooks/      # Ansible playbooks
+│   └── roles/
+│       ├── remna_panel/setup,caddy,creds,subpage
+│       ├── remna_node/setup,logrotate
+│       ├── ufw, docker, node_exporter, reboot, ...
+├── Makefile            # Shortcuts for deployment commands
+└── example.env         # Environment template
+```
 
 ## 🚀 Getting Started
 
@@ -20,14 +30,12 @@ This repository contains the **Infrastructure as Code** setup for deploying and 
 ### Setup
 
 1. **Environment Variables**
-   Copy the example environment file and fill in your secrets (Vultr API key, Cloudflare token, etc.):
    ```bash
    cp example.env .env
-   nano .env
+   nano .env  # Fill in Vultr API key, Cloudflare token, etc.
    ```
 
-2. **Dependencies**
-   Set up a virtual environment and install dependencies:
+2. **Python Dependencies**
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate
@@ -36,27 +44,35 @@ This repository contains the **Infrastructure as Code** setup for deploying and 
 
 ## 🛠️ Usage
 
-Use the `make` commands to orchestrate the deployment:
+### Panel Commands
 
 | Command | Description |
 |---------|-------------|
-| `make deploy` | **Full Deployment**: Runs Terraform to provision infrastructure, then runs Ansible to configure it. |
-| `make deploy-apply` | **Provision Only**: Runs Terraform Apply only. Useful for infrastructure updates without reconfiguration. |
-| `make deploy-reboot` | **Reboot Nodes**: Same as deploy but forces a reboot of all the nodes. |
-| `make deploy-destroy` | **Destroy**: Tears down the infrastructure.|
+| `make panel-deploy` | Deploy panel |
+| `make panel-reboot` | Reboot panel server |
+| `make panel-destroy` | Destroy panel infrastructure |
+
+### Nodes Commands
+
+| Command | Description |
+|---------|-------------|
+| `make nodes-deploy` | Deploy nodes |
+| `make nodes-reboot` | Reboot all nodes |
+| `make nodes-destroy` | Destroy nodes infrastructure |
 
 ## 🧩 Orchestration Logic
 
-The `orchestration/deploy.py` script handles the orchestration:
-1. Load environment variables from `.env`.
-2. Ensure SSH keys exist.
-3. Generate `deployment.auto.tfvars.json` from non sensitive   environment variables.
-4. Run Terraform to apply infrastructure changes.
-5. Detect new nodes by comparing Terraform state.
-6. Run Ansible playbooks (dynamically targeting new nodes or all nodes).
+The `orchestration/deploy.py` script handles:
+
+1. Load environment variables from `.env`
+2. Ensure SSH keys and secrets exist
+3. Generate Terraform tfvars from environment
+4. Run Terraform (plan → apply)
+5. Detect new instances by comparing state
+6. Run Ansible playbooks (targeting new or all hosts)
+7. Auto-reboot on fresh deployments
 
 ## 🔐 Security
 
-- **SSH Keys**: The script generates a separate keypair for Ansible to access the nodes (stored in `~/.ssh/ansible_key`).
-- **Firewall**: Access to the nodes is restricted to specific IP addresses (Node Exporter, Ansible, Node API)
-
+- **SSH Keys**: Separate keypair for Ansible (`~/.ssh/ansible_key`)
+- **Firewall (UFW)**: Restricts access to specific ports and IPs
