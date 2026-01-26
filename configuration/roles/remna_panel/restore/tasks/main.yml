@@ -1,0 +1,51 @@
+---
+# Restore role - uploads backup file, runs restore, and retrieves API token
+
+- name: Copy backup file to server
+  ansible.builtin.copy:
+    src: "{{ backup_file }}"
+    dest: /opt/remnawave-backups/data/
+    mode: "0644"
+
+- name: Get backup filename
+  ansible.builtin.set_fact:
+    backup_filename: "{{ backup_file | basename }}"
+
+- name: Stop Panel App
+  community.docker.docker_container:
+    name: remnawave
+    state: stopped
+
+- name: Run restore
+  ansible.builtin.command:
+    cmd: /opt/remnawave-backups/.venv/bin/python3 -m scripts.cli restore /opt/remnawave-backups/data/{{ backup_filename }} --postgres-only
+    chdir: /opt/remnawave-backups
+  environment:
+    BACKUP_PASSWORD: "{{ lookup('ansible.builtin.env', 'BACKUP_PASSWORD') }}"
+  register: restore_result
+
+- name: Start Panel App
+  community.docker.docker_container:
+    name: remnawave
+    state: started
+
+- name: Display restore output
+  ansible.builtin.debug:
+    var: restore_result.stdout_lines
+
+- name: Retrieve Authentication
+  ansible.builtin.include_tasks: retrieve_auth.yml
+
+- name: Generate API Token (new secrets)
+  ansible.builtin.include_tasks: ../creds/tasks/generate_api_token.yml
+  when: new_panel_secrets | default(false) | bool
+
+- name: Retrieve API Token (preserved secrets)
+  ansible.builtin.include_tasks: retrieve_api_token.yml
+  when: not (new_panel_secrets | default(false) | bool)
+
+- name: Retrieve Config Profile Data
+  ansible.builtin.include_tasks: retrieve_config_data.yml
+
+- name: Retrieve Node Secret Key
+  ansible.builtin.include_tasks: ../creds/tasks/get_node_secret_key.yml

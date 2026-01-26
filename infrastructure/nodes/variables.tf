@@ -22,7 +22,7 @@ variable "panel_url" {
 }
 
 
-variable "node_api_port" {
+variable "node_port" {
   type        = number
   description = "Remna node API port"
   default     = 2233

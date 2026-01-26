@@ -17,14 +17,14 @@
 
 - name: Allow Node API Port (from Panel IP only)
   vars:
-    node_api_port: "{{ lookup('ansible.builtin.env', 'NODE_API_PORT') | default('') }}"
+    node_port: "{{ lookup('ansible.builtin.env', 'NODE_PORT') | default('') }}"
     panel_ip: "{{ lookup('ansible.builtin.env', 'PANEL_IP') | default('') }}"
   community.general.ufw:
     rule: allow
-    port: "{{ node_api_port }}"
+    port: "{{ node_port }}"
     proto: tcp
     from_ip: "{{ panel_ip }}"
-  when: node_api_port | length > 0 and panel_ip | length > 0
+  when: node_port | length > 0 and panel_ip | length > 0
 
 - name: Generate .env from Template
   ansible.builtin.template:
@@ -47,6 +47,7 @@
     project_src: /opt/remnanode
     state: present
     pull: missing
+    build: never
   register: compose_output
 
 - name: Show Deployment Status

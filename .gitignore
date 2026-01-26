@@ -20,3 +20,8 @@ ops/.ansible/
 *.log
 __pycache__/
 *.retry
+nodes.yaml
+panel.yaml
+
+# --- Backups ---
+backups/*.gpg

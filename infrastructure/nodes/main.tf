@@ -127,7 +127,7 @@ resource "restapi_object" "panel_nodes" {
     # "remna-node-jp-0" -> "jp-0"
     name    = format("%s-%s", split("-", each.key)[2], split("-", each.key)[3])
     address = each.value.main_ip
-    port    = var.node_api_port
+    port    = var.node_port
 
     # "remna-node-jp-0" -> "JP"
     countryCode = upper(split("-", each.key)[2])
@@ -164,7 +164,7 @@ resource "terraform_data" "node_config_hash" {
   for_each = var.nodes_vultr
 
   input = jsonencode({
-    port            = var.node_api_port
+    port            = var.node_port
     config_profile  = var.config_profile_uuid
     active_inbounds = var.active_inbounds
     # Trigger replacement on change ensuring ip changes are picked up

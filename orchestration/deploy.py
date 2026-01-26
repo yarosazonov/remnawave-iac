@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 
 from dotenv import load_dotenv, set_key
+import yaml
 
 # --- Configuration ---
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -102,7 +103,8 @@ def ensure_secrets() -> None:
         "POSTGRES_PASSWORD": (24, 'hex'),
         "WEBHOOK_SECRET_HEADER": (32, 'hex'),
         "METRICS_PASS": (16, 'hex'),
-        "PANEL_ADMIN_PASSWORD": (24, 'complex')
+        "PANEL_ADMIN_PASSWORD": (24, 'complex'),
+        "BACKUP_PASSWORD": (24, 'hex'),
     }
     
     updates_made = False
@@ -200,6 +202,15 @@ def run_ansible_playbook(playbook_name: str, limit_arg: str = "", extra_vars: li
 def create_panel_tfvars() -> None:
     """Generates proper tfvars for the Panel stack."""
     try:
+        # Load panel config from panel.yaml
+        panel_file = OPS_DIR / "panel.yaml"
+        if not panel_file.exists():
+            logger.critical(f"❌ panel.yaml not found at {panel_file}")
+            sys.exit(1)
+        
+        with open(panel_file) as f:
+            panel_config = yaml.safe_load(f)
+        
         tf_vars = {
             "cloudflare_zone": os.environ['CLOUDFLARE_ZONE'],
             "admin_username": os.getenv('ADMIN_USERNAME', 'admin'),
@@ -207,7 +218,12 @@ def create_panel_tfvars() -> None:
             "ansible_username": ANSIBLE_USERNAME,
             "ansible_key_path": str(ANSIBLE_KEY_PATH),
             "ansible_allowed_ip": os.getenv('ANSIBLE_STATIC_SSH_IP', ""),
-            "ansible_inventory_path": str(ANSIBLE_DIR / 'inventory/panel.ini')
+            "ansible_inventory_path": str(ANSIBLE_DIR / 'inventory/panel.ini'),
+            # Panel server configuration from panel.yaml
+            "panel_server_region": panel_config['server']['region'],
+            "panel_server_plan": panel_config['server']['plan'],
+            "panel_subdomain": panel_config['subdomains']['panel'],
+            "subscription_subdomain": panel_config['subdomains'].get('subscription', ''),
         }
         
         target = PANEL_TF_DIR / "panel.auto.tfvars.json"
@@ -217,7 +233,7 @@ def create_panel_tfvars() -> None:
         logger.debug(f"Generated {target}")
 
     except KeyError as e:
-        logger.critical(f"❌ Missing required env var for Panel: {e}")
+        logger.critical(f"❌ Missing required config in panel.yaml: {e}")
         sys.exit(1)
 
 def create_nodes_tfvars() -> None:
@@ -232,18 +248,28 @@ def create_nodes_tfvars() -> None:
             logger.warning("⚠️  Warning: ACTIVE_INBOUNDS is not valid JSON. Treating as raw string.")
             active_inbounds = os.environ['ACTIVE_INBOUNDS']
 
+        # Load nodes from nodes.yaml file
+        nodes_file = OPS_DIR / "nodes.yaml"
+        if not nodes_file.exists():
+            logger.critical(f"❌ nodes.yaml not found at {nodes_file}")
+            sys.exit(1)
+        
+        with open(nodes_file) as f:
+            nodes_vultr = yaml.safe_load(f)
+
         tf_vars = {
             "cloudflare_zone": os.environ['CLOUDFLARE_ZONE'],
             "panel_url": os.environ['PANEL_URL'],
             "config_profile_uuid": os.environ['CONFIG_PROFILE_UUID'],
             "active_inbounds": active_inbounds,
-            "node_api_port": os.environ['NODE_API_PORT'],
+            "node_port": os.environ['NODE_PORT'],
             "admin_username": os.environ['ADMIN_USERNAME'],
             "admin_key_path": os.environ['ADMIN_KEY_PATH'],
             "ansible_username": ANSIBLE_USERNAME,
             "ansible_key_path": str(ANSIBLE_KEY_PATH),
             "ansible_allowed_ip": os.getenv('ANSIBLE_STATIC_SSH_IP', ""),
-            "ansible_inventory_path": str(ANSIBLE_DIR / 'inventory/nodes.ini')
+            "ansible_inventory_path": str(ANSIBLE_DIR / 'inventory/nodes.ini'),
+            "nodes_vultr": nodes_vultr,
         }
 
         # Export secrets to ENV for Terraform
@@ -313,6 +339,18 @@ def handle_panel(args):
         run_ansible_playbook('reboot.yml', limit_arg="remnawave_panel", extra_vars=["target_hosts=remnawave_panel"])
         return
 
+    if args.action == "restore":
+        if not args.backup_file:
+            logger.critical("❌ Backup file required for restore. Use: panel restore <backup_file>")
+            sys.exit(1)
+        backup_path = OPS_DIR / "backups" / args.backup_file
+        if not backup_path.exists():
+            logger.critical(f"❌ Backup file not found: {backup_path}")
+            sys.exit(1)
+        logger.info(f"🔄 Restoring Panel from: {args.backup_file}")
+        if args.new_panel_secrets:
+            logger.info("🔑 New secrets mode: will recreate admin and API tokens")
+
     ensure_secrets()
     create_panel_tfvars()
     run_terraform_cmd(["init"], cwd=PANEL_TF_DIR)
@@ -356,23 +394,31 @@ def handle_panel(args):
     logger.info(f"✅ Panel Active: {panel_domain} ({panel_ip})")
     
     # Ansible
-    logger.info("🔧 Configuring Panel Software...")
-    extra_vars = [f"reboot_infra={reboot_flag}"]
-    run_ansible_playbook('panel-configure.yml', extra_vars=extra_vars)
-    logger.info("🎉 Panel Deployment Complete!")
+    if args.action == "restore":
+        logger.info("🔧 Restoring Panel from Backup...")
+        new_secrets = "true" if args.new_panel_secrets else "false"
+        extra_vars = [f"reboot_infra={reboot_flag}", f"backup_file={backup_path}", f"new_panel_secrets={new_secrets}"]
+        run_ansible_playbook('panel-restore.yml', extra_vars=extra_vars)
+        logger.info("🎉 Panel Restore Complete!")
+    else:
+        logger.info("🔧 Configuring Panel Software...")
+        extra_vars = [f"reboot_infra={reboot_flag}"]
+        run_ansible_playbook('panel-fresh.yml', extra_vars=extra_vars)
+        logger.info("🎉 Panel Deployment Complete!")
 
 
-def handle_nodes(args):
+def handle_node(args):
     """Orchestrate Node Deployment."""
-    logger.info("🔹 Mode: NODES")
+    logger.info("🔹 Mode: NODE")
 
     if args.action == "reboot":
         logger.info("🔄 Rebooting Nodes...")
         run_ansible_playbook('reboot.yml', limit_arg="remna_nodes", extra_vars=["target_hosts=remna_nodes"])
         return
 
-        create_nodes_tfvars()
-        run_terraform_cmd(["init"], cwd=NODES_TF_DIR)
+    # Create tfvars and init terraform for deploy/destroy
+    create_nodes_tfvars()
+    run_terraform_cmd(["init"], cwd=NODES_TF_DIR)
 
     if args.action == "destroy":
         logger.warning("🔥 DESTROYING ALL NODES")
@@ -425,13 +471,15 @@ def main():
 
     # Panel Subcommand
     panel_parser = subparsers.add_parser("panel", help="Manage Panel")
-    panel_parser.add_argument("action", choices=["deploy", "destroy", "reboot"], help="Action to perform")
+    panel_parser.add_argument("action", choices=["deploy", "destroy", "reboot", "restore"], help="Action to perform")
+    panel_parser.add_argument("backup_file", nargs="?", help="Backup file for restore (in ops/backups/)")
+    panel_parser.add_argument("--new-panel-secrets", action="store_true", help="Recreate admin and API tokens (use when original secrets are lost)")
     panel_parser.set_defaults(func=handle_panel)
 
-    # Nodes Subcommand
-    nodes_parser = subparsers.add_parser("nodes", help="Manage Node Infrastructure")
-    nodes_parser.add_argument("action", choices=["deploy", "destroy", "reboot"], help="Action to perform")
-    nodes_parser.set_defaults(func=handle_nodes)
+    # Node Subcommand
+    node_parser = subparsers.add_parser("node", help="Manage Node Infrastructure")
+    node_parser.add_argument("action", choices=["deploy", "destroy", "reboot"], help="Action to perform")
+    node_parser.set_defaults(func=handle_node)
 
     args = parser.parse_args()
 

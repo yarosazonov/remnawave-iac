@@ -5,8 +5,8 @@
 - name: Generate API Token
   ansible.builtin.include_tasks: generate_api_token.yml
 
-- name: Get SSL_CERT
-  ansible.builtin.include_tasks: get_ssl_cert.yml
+- name: Get Node Secret Key
+  ansible.builtin.include_tasks: get_node_secret_key.yml
 
 - name: Setup Config Profile
   ansible.builtin.include_tasks: setup_config_profile.yml

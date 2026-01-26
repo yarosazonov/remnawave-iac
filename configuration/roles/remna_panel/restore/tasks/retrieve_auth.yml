@@ -1,0 +1,80 @@
+---
+# Authentication retrieval - behavior depends on new_panel_secrets flag
+
+# === NEW SECRETS MODE: Delete and recreate admin ===
+- name: Wait for Panel API to be available (new secrets)
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/auth/register"
+    method: POST
+    body_format: json
+    headers:
+      Origin: "https://{{ panel_domain }}"
+      Referer: "https://{{ panel_domain }}/login"
+    body:
+      username: "probe"
+      password: "probe"
+    status_code: [200, 201, 400, 403, 500, 502, 503]
+  register: probe_response
+  until: probe_response.status in [200, 201, 400, 403]
+  retries: 60
+  delay: 1
+  when: new_panel_secrets | default(false) | bool
+
+- name: Delete admin and API tokens from database
+  community.docker.docker_container_exec:
+    container: remnawave-db
+    command: psql -U {{ lookup('ansible.builtin.env', 'POSTGRES_USER') | default('postgres', true) }} -d {{ lookup('ansible.builtin.env', 'POSTGRES_DB') | default('postgres', true) }} -c "DELETE FROM api_tokens; DELETE FROM admin;"
+  register: delete_admin_result
+  when: new_panel_secrets | default(false) | bool
+
+- name: Display admin deletion result
+  ansible.builtin.debug:
+    var: delete_admin_result.stdout
+  when: new_panel_secrets | default(false) | bool and delete_admin_result is defined
+
+- name: Register new admin with .env credentials
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/auth/register"
+    method: POST
+    body_format: json
+    headers:
+      Origin: "https://{{ panel_domain }}"
+      Referer: "https://{{ panel_domain }}/login"
+    body:
+      username: "{{ lookup('ansible.builtin.env', 'PANEL_ADMIN_USERNAME') | default('admin', true) }}"
+      password: "{{ lookup('ansible.builtin.env', 'PANEL_ADMIN_PASSWORD') }}"
+    status_code: [200, 201]
+    return_content: true
+  register: register_response
+  retries: 5
+  delay: 1
+  when: new_panel_secrets | default(false) | bool
+
+- name: Set authentication token (from registration)
+  ansible.builtin.set_fact:
+    auth_token: "{{ register_response.json.response.accessToken }}"
+  when: new_panel_secrets | default(false) | bool
+
+# === PRESERVED SECRETS MODE: Just login with backup credentials ===
+- name: Wait for Panel API and login
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/auth/login"
+    method: POST
+    body_format: json
+    headers:
+      Origin: "https://{{ panel_domain }}"
+      Referer: "https://{{ panel_domain }}/login"
+    body:
+      username: "{{ lookup('ansible.builtin.env', 'PANEL_ADMIN_USERNAME') | default('admin', true) }}"
+      password: "{{ lookup('ansible.builtin.env', 'PANEL_ADMIN_PASSWORD') }}"
+    status_code: [200, 201, 400, 403, 500, 502, 503]
+  register: login_response
+  until: login_response.status in [200, 201]
+  retries: 60
+  delay: 1
+  when: not (new_panel_secrets | default(false) | bool)
+
+- name: Set authentication token (from login)
+  ansible.builtin.set_fact:
+    auth_token: "{{ login_response.json.response.accessToken }}"
+  when: not (new_panel_secrets | default(false) | bool)

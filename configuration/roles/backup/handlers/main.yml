@@ -1,0 +1,12 @@
+---
+# Handlers for backup role
+
+- name: Rebuild backup image
+  community.docker.docker_image:
+    name: remnawave-backup
+    tag: latest
+    source: build
+    build:
+      path: /opt/remnawave-backups/scripts
+    state: present
+    force_source: true

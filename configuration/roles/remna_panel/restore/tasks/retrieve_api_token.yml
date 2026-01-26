@@ -1,0 +1,26 @@
+---
+- name: Get existing API tokens
+  ansible.builtin.uri:
+    url: "https://{{ panel_domain }}/api/tokens"
+    method: GET
+    headers:
+      Origin: "https://{{ panel_domain }}"
+      Authorization: "Bearer {{ auth_token }}"
+      X-Remnawave-Client-Type: "browser"
+    status_code: 200
+  register: tokens_response
+
+- name: Set API token fact
+  ansible.builtin.set_fact:
+    remnawave_api_token: "{{ (tokens_response.json.response.apiKeys | first).token }}"
+  when: tokens_response.json.response.apiKeys | length > 0
+
+- name: Write PANEL_API_TOKEN to local .env
+  ansible.builtin.lineinfile:
+    path: "{{ playbook_dir }}/../../.env"
+    regexp: "^PANEL_API_TOKEN="
+    line: "PANEL_API_TOKEN='{{ remnawave_api_token }}'"
+    create: true
+  delegate_to: localhost
+  become: false
+  when: remnawave_api_token is defined

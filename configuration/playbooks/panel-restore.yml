@@ -1,0 +1,35 @@
+---
+- name: Wait for Connectivity
+  hosts: remnawave_panel
+  gather_facts: false
+  tasks:
+    - name: Wait for SSH to be available
+      ansible.builtin.wait_for_connection:
+        delay: 0
+        timeout: 180
+        connect_timeout: 2
+        sleep: 1
+
+- name: Deploy Remnawave Panel from Backup
+  hosts: remnawave_panel
+  become: true
+
+  vars:
+    docker_arch_map:
+      x86_64: amd64
+      aarch64: arm64
+    docker_users:
+      - "{{ ansible_user }}"
+      - "{{ lookup('ansible.builtin.env', 'ADMIN_USERNAME') | default('admin', true) }}"
+
+  roles:
+    - ufw
+    - docker
+    - remna_panel/setup
+    - backup
+    - remna_panel/caddy
+    # Uploads backup, runs restore, retrieves api token, config profile uuid, active inbounds, panel cert.
+    - remna_panel/restore
+    - role: remna_panel/subpage
+      when: sub_domain | default('') | length > 0
+    - reboot

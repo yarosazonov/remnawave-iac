@@ -1,0 +1,21 @@
+# Panel Configuration
+#
+# Regions:
+#   ams: Amsterdam (NL)
+#   nrt: Tokyo (JP)
+#   ewr: New Jersey (US)
+#
+# Plans:
+#   vhf-1c-1gb:       $6  (High Frequency Intel, 1GB RAM, 2TB bandwidth)
+#   vhf-1c-2gb:       $12 (High Frequency Intel, 2GB RAM, 2TB bandwidth)
+#   vhp-1c-2gb-amd:   $12 (High Performance AMD, 2GB RAM, 3TB bandwidth)
+
+server:
+  region: ams
+  plan: vhf-1c-1gb
+
+# Subdomains for DNS
+subdomains:
+  panel: panel7
+  # Leave empty if you don't want to setup subscription page
+  subscription: sub7

@@ -29,6 +29,8 @@
     - ufw
     - docker
     - remna_panel/setup
+    - role: backup
+      when: lookup('ansible.builtin.env', 'BACKUP_ENABLED') | default('false') | bool
     - remna_panel/caddy
     - remna_panel/creds
     - role: remna_panel/subpage

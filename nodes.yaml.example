@@ -1,0 +1,34 @@
+# Node Fleet Definition
+#
+# Regions:
+#   ams: Amsterdam (NL)
+#   nrt: Tokyo (JP)
+#   itm: Osaka (JP)
+#   ewr: New Jersey (US)
+#   bom: Mumbai (IN)
+#
+# Plans:
+#   vc2-1c-1gb:       $5  (1GB RAM, 1TB bandwidth)
+#   vhf-1c-1gb:       $6  (High Frequency Intel, 1GB RAM, 2TB bandwidth)
+#   vhp-1c-1gb-amd:   $6  (High Performance AMD, 2GB RAM, 3TB bandwidth)
+#   vhp-1c-1gb-intel: $6  (High Performance Intel, 2GB RAM, 3TB bandwidth)
+
+# remna-node-nl-0:
+#   region: ams
+#   plan: vhp-1c-1gb-intel
+
+# remna-node-nl-1:
+#   region: ams
+#   plan: vhp-1c-1gb-intel
+
+# remna-node-jp-0:
+#   region: nrt
+#   plan: vhp-1c-1gb-intel
+
+# remna-node-us-0:
+#   region: ewr
+#   plan: vhp-1c-1gb-intel
+
+remna-node-in-0:
+  region: bom
+  plan: vhp-1c-1gb-intel

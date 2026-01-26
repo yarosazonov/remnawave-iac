@@ -1,0 +1,40 @@
+---
+# Backup role - builds backup container and sets up cron job
+
+- name: Create remnawave-backups directory structure
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /opt/remnawave-backups
+    - /opt/remnawave-backups/data
+    - /opt/remnawave-backups/scripts
+
+- name: Copy backup scripts and Dockerfile
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /opt/remnawave-backups/scripts/
+    mode: "0644"
+  loop:
+    - __init__.py
+    - cli.py
+    - postgres.py
+    - sqlite.py
+    - archive.py
+    - cleanup.py
+    - telegram.py
+    - Dockerfile
+  notify: Rebuild backup image
+
+- name: Deploy backup environment file
+  ansible.builtin.template:
+    src: backup.env.j2
+    dest: /opt/remnawave-backups/scripts/backup.env
+    mode: "0600"
+
+- name: Deploy backup cron job
+  ansible.builtin.template:
+    src: backup.cron.j2
+    dest: /etc/cron.d/remnawave-backup
+    mode: "0644"
