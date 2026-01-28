@@ -1,6 +1,6 @@
 services:
   remnawave-subscription-page:
-    image: remnawave/subscription-page:7.1.0
+    image: remnawave/subscription-page:7.1.6
     container_name: remnawave-subscription-page
     hostname: remnawave-subscription-page
     restart: always

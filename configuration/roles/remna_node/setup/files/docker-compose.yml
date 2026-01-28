@@ -2,7 +2,7 @@ services:
     remnanode:
         container_name: remnanode
         hostname: remnanode
-        image: remnawave/node:2.5.0
+        image: remnawave/node:2.5.1
         restart: always
         network_mode: host
         env_file:
