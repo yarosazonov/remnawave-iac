@@ -8,11 +8,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from .postgres import backup_postgres, restore_postgres
-from .sqlite import backup_sqlite, restore_sqlite
-from .archive import create_encrypted_archive, decrypt_archive
-from .cleanup import cleanup_old_backups
-from .telegram import send_document
+from postgres import backup_postgres, restore_postgres
+from sqlite import backup_sqlite, restore_sqlite
+from archive import create_encrypted_archive, decrypt_archive
+from cleanup import cleanup_old_backups
+from telegram import send_document
 
 # Configure logging
 logging.basicConfig(
@@ -24,10 +24,26 @@ logger = logging.getLogger(__name__)
 
 BACKUPS_DIR = Path('/opt/remnawave-backups/data')
 
+BACKUP_CONFIG = {
+    'panel': {
+        'backup_func': backup_postgres,
+        'restore_func': restore_postgres,
+        'caption': '🗄️ Panel Backup',
+    },
+    'krisa-bot': {
+        'backup_func': backup_sqlite,
+        'restore_func': restore_sqlite,
+        'caption': '🗄️ Krisa-Bot Backup',
+    },
+}
 
-def run_backup() -> Path | None:
-    """Performs a full backup and sends to admin."""
-    # Read config from environment
+
+def run_backup(backup_type: str) -> None:
+    """Performs a backup and sends to admin.
+    
+    Args:
+        backup_type: 'panel' or 'krisa-bot'
+    """
     bot_token = os.environ.get('BOT_TOKEN')
     admin_id = os.environ.get('ADMIN_ID')
     backup_password = os.environ.get('BACKUP_PASSWORD')
@@ -35,61 +51,57 @@ def run_backup() -> Path | None:
     
     if not all([bot_token, admin_id, backup_password]):
         logger.error("Missing required env vars: BOT_TOKEN, ADMIN_ID, BACKUP_PASSWORD")
-        return None
+        return
     
     date_str = datetime.now().strftime("%d-%m-%y")
-    backup_dir = BACKUPS_DIR / date_str
-    backup_dir.mkdir(parents=True, exist_ok=True)
     
-    # Backup both databases
-    backup_postgres(backup_dir, date_str)
-    backup_sqlite(backup_dir, date_str)
-    
-    # Create encrypted archive
-    archive_path = create_encrypted_archive(backup_dir, backup_password)
-    
-    if archive_path:
-        # Send to Telegram
-        caption = f"🗄️ Backup {date_str}"
-        send_document(bot_token, admin_id, archive_path, caption)
+    try:
+        config = BACKUP_CONFIG[backup_type]
+        dump_file = config['backup_func'](BACKUPS_DIR, date_str)
         
-        # Cleanup old backups
-        cleanup_old_backups(BACKUPS_DIR, retention_days)
+        if not dump_file:
+            logger.error(f"{backup_type} backup: dump creation failed")
+            return
+        
+        archive_path = create_encrypted_archive(dump_file, backup_password, prefix=backup_type)
+        
+        if archive_path:
+            caption = f"{config['caption']} {date_str}"
+            send_document(bot_token, admin_id, archive_path, caption)
+            cleanup_old_backups(BACKUPS_DIR, retention_days)
+            logger.info(f"{backup_type} backup completed successfully")
+    except Exception as e:
+        logger.error(f"{backup_type} backup failed: {e}")
+
+
+def run_restore(encrypted_path: str, backup_type: str) -> bool:
+    """Restores database from an encrypted backup.
     
-    return archive_path
-
-
-def run_restore(encrypted_path: str, postgres_only: bool = False, sqlite_only: bool = False) -> bool:
-    """Restores databases from an encrypted backup."""
+    Args:
+        encrypted_path: Path to the .gpg backup file
+        backup_type: 'panel' or 'krisa-bot'
+    """
     backup_password = os.environ.get('BACKUP_PASSWORD')
     
     if not backup_password:
         logger.error("Missing required env var: BACKUP_PASSWORD")
         return False
     
-    logger.info(f"Starting restore from: {encrypted_path}")
+    logger.info(f"Starting {backup_type} restore from: {encrypted_path}")
     
     try:
-        backup_dir = decrypt_archive(Path(encrypted_path), backup_password)
-        logger.info(f"Backup extracted to: {backup_dir}")
+        dump_file = decrypt_archive(Path(encrypted_path), backup_password)
+        logger.info(f"Dump file extracted: {dump_file}")
         
-        success = True
+        config = BACKUP_CONFIG[backup_type]
+        success = config['restore_func'](dump_file)
         
-        if not sqlite_only:
-            if not restore_postgres(backup_dir):
-                success = False
+        # Cleanup extracted dump file
+        if dump_file.exists():
+            dump_file.unlink()
+            logger.info("Cleaned up extracted dump file")
         
-        if not postgres_only:
-            if not restore_sqlite(backup_dir):
-                logger.warning("SQLite restore failed, but continuing anyway")
-        
-        # Cleanup
-        if backup_dir.exists():
-            shutil.rmtree(backup_dir)
-            logger.info("Cleaned up extracted backup directory")
-        
-        return success
-        
+        return success  
     except Exception as e:
         logger.error(f"Restore failed: {e}")
         return False
@@ -99,23 +111,34 @@ def main() -> None:
     parser = argparse.ArgumentParser(description='Backup and restore utility')
     subparsers = parser.add_subparsers(dest='command', help='Commands')
     
-    subparsers.add_parser('backup', help='Create backup and send to admin')
+    # Backup command
+    backup_parser = subparsers.add_parser('backup', help='Create backup and send to admin')
+    backup_group = backup_parser.add_mutually_exclusive_group(required=True)
+    backup_group.add_argument('--panel', action='store_true', help='Backup panel (PostgreSQL)')
+    backup_group.add_argument('--krisa-bot', action='store_true', help='Backup Krisa bot (SQLite)')
     
+    # Restore command
     restore_parser = subparsers.add_parser('restore', help='Restore from backup')
     restore_parser.add_argument('backup_file', help='Path to .gpg backup file')
-    restore_parser.add_argument('--postgres-only', action='store_true')
-    restore_parser.add_argument('--sqlite-only', action='store_true')
+    restore_group = restore_parser.add_mutually_exclusive_group(required=True)
+    restore_group.add_argument('--panel', action='store_true', help='Restore panel (PostgreSQL)')
+    restore_group.add_argument('--krisa-bot', action='store_true', help='Restore Krisa bot (SQLite)')
     
     args = parser.parse_args()
     
-    if args.command == 'backup' or args.command is None:
-        run_backup()
+    if args.command == 'backup':
+        if args.panel:
+            backup_type = 'panel'
+        # argparse automatically converts hyphens to underscores
+        elif args.krisa_bot:
+            backup_type = 'krisa-bot'
+        run_backup(backup_type)
     elif args.command == 'restore':
-        success = run_restore(
-            args.backup_file,
-            postgres_only=args.postgres_only,
-            sqlite_only=args.sqlite_only
-        )
+        if args.panel:
+            backup_type = 'panel'
+        elif args.krisa_bot:
+            backup_type = 'krisa-bot'
+        success = run_restore(args.backup_file, backup_type)
         if not success:
             sys.exit(1)
     else:

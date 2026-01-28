@@ -1,10 +1,10 @@
-# Backup cron job - runs daily at 3 AM
+# Backup cron jobs - runs daily at 3 AM
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 
+# Panel backup (PostgreSQL)
 0 3 * * * root docker run --rm \
 --env-file /opt/remnawave-backups/scripts/backup.env \
 -v /var/run/docker.sock:/var/run/docker.sock \
 -v /opt/remnawave-backups/data:/opt/remnawave-backups/data \
--v /opt/remnawave-panel:/opt/remnawave-panel:ro \
-remnawave-backup:latest backup >> /var/log/remnawave-backup.log 2>&1
+remnawave-backup:latest backup --panel >> /var/log/remnawave-backup.log 2>&1

@@ -29,15 +29,16 @@ def backup_postgres(backup_dir: Path, date_str: str) -> Path | None:
         return None
 
 
-def restore_postgres(backup_dir: Path) -> bool:
-    """Restores PostgreSQL from a dump file."""
-    dump_files = list(backup_dir.glob("postgres-backup-*.dump"))
+def restore_postgres(dump_file: Path) -> bool:
+    """Restores PostgreSQL from a dump file.
     
-    if not dump_files:
-        logger.error(f"No PostgreSQL dump file found in {backup_dir}")
+    Args:
+        dump_file: Path to the PostgreSQL dump file
+    """
+    if not dump_file.exists():
+        logger.error(f"Dump file not found: {dump_file}")
         return False
     
-    dump_file = dump_files[0]
     logger.info(f"Restoring PostgreSQL from: {dump_file.name}")
     
     # Terminate existing connections

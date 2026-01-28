@@ -17,8 +17,9 @@ def cleanup_old_backups(backups_dir: Path, retention_days: int) -> int:
     deleted_count = 0
     
     for gpg_file in backups_dir.glob("*.tar.gz.gpg"):
-        # Parse "14-01-26" from "14-01-26.tar.gz.gpg"
-        date_str = gpg_file.name.split(".")[0]
+        # Parse "14-01-26" from "panel-14-01-26.tar.gz.gpg" or "krisa-bot-14-01-26.tar.gz.gpg"
+        basename = gpg_file.name.split(".")[0]  # e.g., "panel-14-01-26"
+        date_str = basename.split("-", 1)[-1] if "-" in basename else basename
         try:
             file_date = datetime.strptime(date_str, "%d-%m-%y")
             if file_date < cutoff_date:

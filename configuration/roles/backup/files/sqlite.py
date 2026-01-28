@@ -35,21 +35,22 @@ def backup_sqlite(backup_dir: Path, date_str: str) -> Path | None:
         return None
 
 
-def restore_sqlite(backup_dir: Path) -> bool:
-    """Restores SQLite database from a backup file."""
-    sqlite_files = list(backup_dir.glob("sqlite-backup-*.db"))
+def restore_sqlite(dump_file: Path) -> bool:
+    """Restores SQLite database from a backup file.
     
-    if not sqlite_files:
-        logger.error(f"No SQLite backup file found in {backup_dir}")
+    Args:
+        dump_file: Path to the SQLite backup file
+    """
+    if not dump_file.exists():
+        logger.error(f"Backup file not found: {dump_file}")
         return False
     
-    backup_file = sqlite_files[0]
-    logger.info(f"Restoring SQLite from: {backup_file.name}")
+    logger.info(f"Restoring SQLite from: {dump_file.name}")
     
     temp_path = '/tmp/sqlite_restore.db'
     
     # Copy backup into container
-    copy_cmd = ['docker', 'cp', str(backup_file), f'{SQLITE_CONTAINER}:{temp_path}']
+    copy_cmd = ['docker', 'cp', str(dump_file), f'{SQLITE_CONTAINER}:{temp_path}']
     
     # Move to target location (overwrites existing)
     move_cmd = [
