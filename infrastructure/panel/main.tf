@@ -16,7 +16,7 @@ terraform {
 
   backend "local" {
     # Independent state file for panel
-    path = "terraform.tfstate"
+    path = "state/terraform.tfstate"
   }
 }
 
