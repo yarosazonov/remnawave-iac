@@ -16,12 +16,24 @@
     name: remnawave
     state: stopped
 
+- name: Build backup Docker image
+  community.docker.docker_image:
+    name: remnawave-backup
+    tag: latest
+    source: build
+    build:
+      path: /opt/remnawave-backups/scripts
+    state: present
+    force_source: true
+
 - name: Run restore
   ansible.builtin.command:
-    cmd: /opt/remnawave-backups/.venv/bin/python3 -m scripts.cli restore /opt/remnawave-backups/data/{{ backup_filename }} --postgres-only
-    chdir: /opt/remnawave-backups
-  environment:
-    BACKUP_PASSWORD: "{{ lookup('ansible.builtin.env', 'BACKUP_PASSWORD') }}"
+    cmd: >
+      docker run --rm
+      -e BACKUP_PASSWORD={{ lookup('ansible.builtin.env', 'BACKUP_PASSWORD') }}
+      -v /var/run/docker.sock:/var/run/docker.sock
+      -v /opt/remnawave-backups/data:/opt/remnawave-backups/data
+      remnawave-backup:latest restore --panel /opt/remnawave-backups/data/{{ backup_filename }}
   register: restore_result
 
 - name: Start Panel App
