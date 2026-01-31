@@ -203,7 +203,7 @@ def create_panel_tfvars() -> None:
     """Generates proper tfvars for the Panel stack."""
     try:
         # Load panel config from panel.yaml
-        panel_file = OPS_DIR / "panel.yaml"
+        panel_file = OPS_DIR / "config" / "panel.yaml"
         if not panel_file.exists():
             logger.critical(f"❌ panel.yaml not found at {panel_file}")
             sys.exit(1)
@@ -249,7 +249,7 @@ def create_nodes_tfvars() -> None:
             active_inbounds = os.environ['ACTIVE_INBOUNDS']
 
         # Load nodes from nodes.yaml file
-        nodes_file = OPS_DIR / "nodes.yaml"
+        nodes_file = OPS_DIR / "config" / "nodes.yaml"
         if not nodes_file.exists():
             logger.critical(f"❌ nodes.yaml not found at {nodes_file}")
             sys.exit(1)
