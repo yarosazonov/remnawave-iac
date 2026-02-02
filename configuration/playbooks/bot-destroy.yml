@@ -1,0 +1,16 @@
+---
+- name: Destroy Bot
+  hosts: remnawave_panel
+  become: true
+
+  tasks:
+    - name: Tear down Krisa Bot Stack
+      community.docker.docker_compose_v2:
+        project_src: /opt/krisa-bot
+        state: absent
+      ignore_errors: true
+
+    - name: Remove Krisa Bot directory
+      file:
+        path: /opt/krisa-bot
+        state: absent

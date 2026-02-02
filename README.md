@@ -17,7 +17,7 @@ ops/
 │       ├── remna_node/setup,logrotate
 │       ├── ufw, docker, node_exporter, reboot, ...
 ├── Makefile            # Shortcuts for deployment commands
-└── example.env         # Environment template
+└── .env.example        # Environment template
 ```
 
 ## 🚀 Getting Started
@@ -31,7 +31,7 @@ ops/
 
 1. **Environment Variables**
    ```bash
-   cp example.env .env
+   cp .env.example .env
    nano .env  # Fill in Vultr API key, Cloudflare token, etc.
    ```
 

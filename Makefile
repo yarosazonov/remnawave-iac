@@ -1,4 +1,4 @@
-.PHONY: help panel-deploy panel-restore panel-reboot panel-destroy node-deploy node-reboot node-destroy
+.PHONY: help panel-deploy panel-restore panel-reboot panel-destroy node-deploy node-reboot node-destroy krisa-bot-deploy backup-setup
 
 help:
 	@echo "Available commands:"
@@ -10,6 +10,10 @@ help:
 	@echo "  make node-deploy    - Deploy Nodes (Terraform + Ansible)"
 	@echo "  make node-reboot    - Reboot Nodes"
 	@echo "  make node-destroy   - Destroy Nodes"
+	@echo "  make krisa-bot-deploy - Deploy Krisa Bot"
+	@echo "  make krisa-bot-destroy - Destroy Krisa Bot DNS"
+	@echo "  make backup-setup   - Setup Daily Panel Backups (use KRISA=1 to include krisa bot)"
+	@echo "  make backup-force   - Force Backup Creation (use KRISA=1 to include krisa bot)"
 
 panel-deploy:
 	.venv/bin/python orchestration/deploy.py panel deploy
@@ -31,4 +35,16 @@ node-reboot:
 
 node-destroy:
 	.venv/bin/python orchestration/deploy.py node destroy
+
+krisa-bot-deploy:
+	.venv/bin/python orchestration/deploy.py bot deploy krisa
+
+krisa-bot-destroy:
+	.venv/bin/python orchestration/deploy.py bot destroy krisa
+
+backup-setup:
+	.venv/bin/python orchestration/deploy.py backup setup $(if $(KRISA),--krisa,)
+
+backup-force:
+	.venv/bin/python orchestration/deploy.py backup force $(if $(KRISA),--krisa,)
 

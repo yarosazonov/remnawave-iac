@@ -7,7 +7,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-SQLITE_CONTAINER = 'remnawave-tg-bot'
+SQLITE_CONTAINER = 'krisa-bot'
 SQLITE_DB_PATH = '/app/data/db/bot.db'
 
 
@@ -16,10 +16,18 @@ def backup_sqlite(backup_dir: Path, date_str: str) -> Path | None:
     backup_file = backup_dir / f"sqlite-backup-{date_str}.db"
     temp_path = '/tmp/sqlite_backup.db'
     
-    # Use sqlite3 .backup inside container (safe, handles locks)
+    # Use python to backup (since sqlite3 cli is not present in python slim)
+    backup_script = (
+        f"import sqlite3; "
+        f"src = sqlite3.connect('{SQLITE_DB_PATH}'); "
+        f"dst = sqlite3.connect('{temp_path}'); "
+        f"src.backup(dst); "
+        f"dst.close(); src.close()"
+    )
+    
     backup_cmd = [
         'docker', 'exec', SQLITE_CONTAINER,
-        'sqlite3', SQLITE_DB_PATH, f'.backup {temp_path}'
+        'python', '-c', backup_script
     ]
     
     # Copy the backup out of the container

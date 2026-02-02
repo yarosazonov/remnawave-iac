@@ -1,0 +1,54 @@
+---
+- name: Get Admin Username
+  ansible.builtin.set_fact:
+    admin_username: "{{ lookup('ansible.builtin.env', 'ADMIN_USERNAME') }}"
+
+- name: Get admin user info
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ admin_username }}"
+
+- name: Set admin user facts
+  ansible.builtin.set_fact:
+    admin_uid: "{{ ansible_facts.getent_passwd[admin_username][1] }}"
+    admin_gid: "{{ ansible_facts.getent_passwd[admin_username][2] }}"
+
+- name: Ensure Krisa Bot directory exists
+  file:
+    path: /opt/krisa-bot
+    state: directory
+    mode: "0755"
+    owner: "{{ admin_username }}"
+    group: "{{ admin_username }}"
+
+- name: Create .env file
+  template:
+    src: krisa_bot.env.j2
+    dest: /opt/krisa-bot/.env
+    owner: "{{ admin_username }}"
+    group: "{{ admin_username }}"
+    mode: "0600"
+
+- name: Create docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/krisa-bot/docker-compose.yml
+    owner: "{{ admin_username }}"
+    group: "{{ admin_username }}"
+    mode: "0644"
+
+- name: Ensure logs directory exists
+  file:
+    path: /opt/krisa-bot/data/logs
+    state: directory
+    mode: "0755"
+    owner: "1000"
+    group: "1000"
+
+- name: Start Krisa Bot Stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/krisa-bot
+    state: present
+    wait: true
+    wait_timeout: 60
+    pull: always

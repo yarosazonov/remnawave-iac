@@ -1,0 +1,44 @@
+---
+- name: Force Backup Execution
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+
+  vars:
+    krisa_bot_backup: false
+
+  tasks:
+    - name: Run Panel Backup (PostgreSQL)
+      ansible.builtin.shell:
+        cmd: |
+          docker run --rm \
+          --env-file /opt/remnawave-backups/scripts/backup.env \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v /opt/remnawave-backups/data:/opt/remnawave-backups/data \
+          remnawave-backup:latest backup --panel
+      register: panel_backup_result
+      changed_when: true
+
+    - name: Run Krisa Bot Backup (SQLite)
+      ansible.builtin.shell:
+        cmd: |
+          docker run --rm \
+          --env-file /opt/remnawave-backups/scripts/backup.env \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v /opt/remnawave-backups/data:/opt/remnawave-backups/data \
+          remnawave-backup:latest backup --krisa-bot
+      when: krisa_bot_backup | bool
+      register: krisa_backup_result
+      changed_when: true
+
+    - name: Show Panel Backup Output
+      ansible.builtin.debug:
+        msg: 
+          - "STDOUT: {{ panel_backup_result.stdout_lines }}"
+          - "STDERR: {{ panel_backup_result.stderr_lines }}"
+
+    - name: Show Krisa Bot Backup Output
+      ansible.builtin.debug:
+        msg: 
+          - "STDOUT: {{ krisa_backup_result.stdout_lines | default('Skipped') }}"
+          - "STDERR: {{ krisa_backup_result.stderr_lines | default('Skipped') }}"

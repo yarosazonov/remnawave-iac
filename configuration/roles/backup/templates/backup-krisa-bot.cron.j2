@@ -1,0 +1,10 @@
+# Krisa-Bot backup cron job - runs daily at 3:05 AM
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Krisa-Bot backup (SQLite)
+5 3 * * * root docker run --rm \
+--env-file /opt/remnawave-backups/scripts/backup.env \
+-v /var/run/docker.sock:/var/run/docker.sock \
+-v /opt/remnawave-backups/data:/opt/remnawave-backups/data \
+remnawave-backup:latest backup --krisa-bot >> /var/log/remnawave-backup.log 2>&1

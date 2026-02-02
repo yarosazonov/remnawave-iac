@@ -1,0 +1,9 @@
+---
+- name: Deploy Bot
+  hosts: remnawave_panel
+  become: true
+  
+  tasks:
+    - name: Run Bot Role
+      include_role:
+        name: "{{ bot_role }}"

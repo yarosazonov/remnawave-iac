@@ -26,11 +26,12 @@
   roles:
     # Default ufw setup (incoming/outgoing + ssh).
     # 80 and 443 are managed by docker using iptables
-    - ufw
+    # though ufw were blocking the internal bot - panel traffic, so open it anyway
+    - role: ufw
+      vars:
+        ufw_open_ports: [80, 443]
     - docker
     - remna_panel/setup
-    - role: backup
-      when: lookup('ansible.builtin.env', 'BACKUP_ENABLED') | default('false') | bool
     - remna_panel/caddy
     - remna_panel/creds
     - role: remna_panel/subpage

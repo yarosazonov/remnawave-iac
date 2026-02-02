@@ -26,10 +26,7 @@
   roles:
     - role: ufw
       vars:
-        ufw_open_ports:
-          - "80"
-          - "443"
-          - "8443"
+        ufw_open_ports: [80, 443, 8443]
     - docker
     - remna_node/setup
     - remna_node/logrotate

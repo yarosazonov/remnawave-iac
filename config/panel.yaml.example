@@ -13,9 +13,3 @@
 server:
   region: ams
   plan: vhf-1c-1gb
-
-# Subdomains for DNS
-subdomains:
-  panel: panel7
-  # Leave empty if you don't want to setup subscription page
-  subscription: sub7

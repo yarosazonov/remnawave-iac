@@ -33,7 +33,7 @@ BACKUP_CONFIG = {
     'krisa-bot': {
         'backup_func': backup_sqlite,
         'restore_func': restore_sqlite,
-        'caption': '🗄️ Krisa-Bot Backup',
+        'caption': '🐀 Krisa-Bot Backup',
     },
 }
 
@@ -72,6 +72,7 @@ def run_backup(backup_type: str) -> None:
             logger.info(f"{backup_type} backup completed successfully")
     except Exception as e:
         logger.error(f"{backup_type} backup failed: {e}")
+        sys.exit(1)
 
 
 def run_restore(encrypted_path: str, backup_type: str) -> bool:

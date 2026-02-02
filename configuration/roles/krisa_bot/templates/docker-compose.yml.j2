@@ -1,0 +1,25 @@
+services:
+  krisa-bot:
+    image: ghcr.io/yarosazonov/krisa-remna-tg-bot:0.1
+    container_name: krisa-bot
+    hostname: krisa-bot
+    ports:
+      - "127.0.0.1:4000:4000"
+    extra_hosts:
+      - "{{ panel_domain }}:host-gateway"
+    env_file:
+      - .env
+    volumes:
+      - bot-db:/app/data/db
+      - ./data/logs:/app/data/logs
+    networks:
+      - remnawave-network
+    restart: unless-stopped
+
+networks:
+  remnawave-network:
+    external: true
+
+volumes:
+  bot-db:
+    driver: local
