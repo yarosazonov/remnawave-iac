@@ -59,6 +59,20 @@
     state: present
     pull: never
 
+- name: Deploy Bot Caddy Configuration
+  template:
+    src: bot_caddy.j2
+    dest: /opt/remnawave/caddy/site-confs/bot.caddy
+    owner: "{{ admin_username }}"
+    group: "{{ admin_username }}"
+    mode: "0644"
+
+- name: Reload Caddy
+  community.docker.docker_container_exec:
+    container: caddy
+    command: caddy reload --config /etc/caddy/Caddyfile
+  ignore_errors: true
+
 - name: Start Krisa Bot Stack
   community.docker.docker_compose_v2:
     project_src: /opt/krisa-bot

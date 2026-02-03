@@ -40,14 +40,14 @@ data "template_file" "user_data" {
 
 data "cloudflare_zone" "main" {
   filter = {
-    name = var.cloudflare_zone
+    name = local.config.domain.zone
   }
 }
 
 # === PROVIDERS ===
 
 provider "restapi" {
-  uri                  = "https://${var.panel_domain}/api"
+  uri                  = "https://${local.config.domain.panel_domain}/api"
   write_returns_object = true
   debug                = true
 
@@ -72,9 +72,26 @@ provider "cloudflare" {
 
 # === RESOURCES ===
 
-# 1. Vultr Instances (Iterate over var.nodes)
+locals {
+  config = yamldecode(file("${path.module}/../../config/nodes.yaml"))
+
+  # Parse node groups into a map of instances
+  # Key: remna-node-{id}-{index}
+  # Value: { region: ..., plan: ... }
+  node_instances = merge([
+    for group in local.config.node_groups : {
+      for i in range(group.count) :
+      "remna-node-${group.id}-${i}" => {
+        region = group.region
+        plan   = group.plan
+      }
+    }
+  ]...)
+}
+
+# 1. Iterate over defined instances)
 resource "vultr_instance" "nodes" {
-  for_each = var.nodes_vultr
+  for_each = local.node_instances
 
   # Hardware
   plan   = each.value.plan
@@ -161,7 +178,7 @@ resource "restapi_object" "panel_nodes" {
 
 # Helper resource to track configuration changes and force replacement
 resource "terraform_data" "node_config_hash" {
-  for_each = var.nodes_vultr
+  for_each = local.node_instances
 
   input = jsonencode({
     port            = var.node_port
@@ -197,4 +214,5 @@ output "node_data" {
     for key, instance in vultr_instance.nodes :
     key => instance.main_ip
   }
+  sensitive = true
 }

@@ -12,8 +12,4 @@ reverse_proxy * http://remnawave-subscription-page:3010
 }
 {% endif %}
 
-{% if bot_domain | default('') | length > 0 %}
-https://{{ bot_domain }} {
-reverse_proxy * http://krisa-bot:4000
-}
-{% endif %}
+import /etc/caddy/site-confs/*

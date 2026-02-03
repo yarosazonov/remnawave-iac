@@ -1,0 +1,5 @@
+# Bot Configuration
+
+domain:
+  zone: krisavpn.vip
+  bot_subdomain: bot2

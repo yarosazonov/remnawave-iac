@@ -11,6 +11,7 @@ services:
       - remnawave-network
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./site-confs:/etc/caddy/site-confs
       - caddy-ssl-data:/data
 
 networks:

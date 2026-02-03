@@ -1,26 +1,7 @@
-variable "nodes_vultr" {
-  type = map(object({
-    region = string
-    plan   = optional(string, "vc2-1c-1gb") # Default to $5 plan
-  }))
-  description = "Map of nodes to deploy"
-}
-
-variable "cloudflare_zone" {
-  type        = string
-  description = "Panel domain name"
-}
-
 variable "PANEL_API_TOKEN" {
   type        = string
   description = "Remna panel API token"
 }
-
-variable "panel_domain" {
-  type        = string
-  description = "Remna panel Domain (e.g. panel.example.com)"
-}
-
 
 variable "node_port" {
   type        = number

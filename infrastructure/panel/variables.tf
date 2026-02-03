@@ -1,30 +1,3 @@
-variable "cloudflare_zone" {
-  type        = string
-  description = "Domain name (Zone)"
-}
-
-variable "panel_subdomain" {
-  type        = string
-  description = "Subdomain for the panel (e.g. 'panel')"
-}
-
-variable "subscription_subdomain" {
-  type        = string
-  description = "Subdomain for the subscription page (e.g. 'sub')"
-}
-
-variable "panel_server_plan" {
-  type        = string
-  description = "Vultr plan for the panel server"
-  default     = "vhf-1c-2gb"
-}
-
-variable "panel_server_region" {
-  type        = string
-  description = "Vultr region for the panel server"
-  default     = "ams"
-}
-
 variable "admin_username" {
   description = "Username for the admin account"
   type        = string
@@ -58,8 +31,4 @@ variable "ansible_inventory_path" {
   type        = string
 }
 
-variable "bot_subdomain" {
-  description = "Subdomain for the Telegram bot (e.g. 'bot')"
-  type        = string
-  default     = ""
-}
+

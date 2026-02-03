@@ -49,7 +49,3 @@
     pull: missing
     build: never
   register: compose_output
-
-- name: Show Deployment Status
-  ansible.builtin.debug:
-    var: compose_output.actions

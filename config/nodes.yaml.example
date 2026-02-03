@@ -13,22 +13,27 @@
 #   vhp-1c-1gb-amd:   $6  (High Performance AMD, 2GB RAM, 3TB bandwidth)
 #   vhp-1c-1gb-intel: $6  (High Performance Intel, 2GB RAM, 3TB bandwidth)
 
-# remna-node-nl-0:
-#   region: ams
-#   plan: vhp-1c-1gb-intel
+# Domain Configuration
+# zone: The Cloudflare zone (domain). A separate subdomain will be created for each group id. 
+# Multiple nodes under the same id will be DNS balanced
+# panel_domain: The full domain of the panel needed for node connection
+domain:
+  zone: example.com
+  panel_domain: panel.example.com
 
-# remna-node-nl-1:
-#   region: ams
-#   plan: vhp-1c-1gb-intel
+# Node Groups
+# Define clusters of nodes by region.
+# id: Used for hostname generation (remna-node-{id}-{index})
+# count: Number of nodes to deploy in this group
+node_groups:
+  # Example: 2 Nodes in Amsterdam (remna-node-nl-0, remna-node-nl-1)
+  - region: ams
+    id: nl
+    count: 2
+    plan: vhp-1c-1gb-intel
 
-# remna-node-jp-0:
-#   region: nrt
-#   plan: vhp-1c-1gb-intel
-
-# remna-node-us-0:
-#   region: ewr
-#   plan: vhp-1c-1gb-intel
-
-remna-node-in-0:
-  region: bom
-  plan: vhp-1c-1gb-intel
+  # Example: 1 Node by default
+  - region: bom
+    id: in
+    count: 1
+    plan: vhp-1c-1gb-intel

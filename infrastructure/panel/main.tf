@@ -42,17 +42,21 @@ data "template_file" "user_data" {
 
 data "cloudflare_zone" "main" {
   filter = {
-    name = var.cloudflare_zone
+    name = local.panel_config.domain.zone
   }
 }
 
+locals {
+  panel_config = yamldecode(file("${path.module}/../../config/panel.yaml"))
+}
+
 resource "vultr_instance" "panel" {
-  plan   = var.panel_server_plan
-  region = var.panel_server_region
+  plan   = local.panel_config.server.plan
+  region = local.panel_config.server.region
   os_id  = 2136 # Debian 12
 
-  label    = "remna-panel"
-  hostname = "remna-panel"
+  label    = local.panel_config.server.hostname
+  hostname = local.panel_config.server.hostname
 
   tags        = ["auto-deploy", "remnawave", "panel"]
   enable_ipv6 = true
@@ -70,7 +74,7 @@ resource "vultr_instance" "panel" {
 # Panel DNS Record
 resource "cloudflare_dns_record" "panel" {
   zone_id = data.cloudflare_zone.main.id
-  name    = var.panel_subdomain
+  name    = local.panel_config.domain.panel_subdomain
   content = vultr_instance.panel.main_ip
   type    = "A"
   proxied = false
@@ -80,10 +84,10 @@ resource "cloudflare_dns_record" "panel" {
 
 # Subpage DNS Record
 resource "cloudflare_dns_record" "subscription" {
-  # CONDITION ? TRUE : FALSE
-  count   = var.subscription_subdomain != "" ? 1 : 0
+  # Create only if sub_subdomain is not empty
+  count   = local.panel_config.domain.sub_subdomain != "" ? 1 : 0
   zone_id = data.cloudflare_zone.main.id
-  name    = var.subscription_subdomain
+  name    = local.panel_config.domain.sub_subdomain
   content = vultr_instance.panel.main_ip
   type    = "A"
   proxied = false
@@ -96,14 +100,13 @@ resource "local_file" "ansible_inventory" {
   filename        = var.ansible_inventory_path
   content         = <<EOT
 [remnawave_panel]
-${vultr_instance.panel.hostname} ansible_host=${vultr_instance.panel.main_ip}
+remna-panel ansible_host=${vultr_instance.panel.main_ip}
 
 [remnawave_panel:vars]
 ansible_user=${var.ansible_username}
 ansible_ssh_private_key_file=${var.ansible_key_path}
-panel_domain=${var.panel_subdomain}.${var.cloudflare_zone}
-sub_domain=${var.subscription_subdomain != "" ? "${var.subscription_subdomain}.${var.cloudflare_zone}" : ""}
-bot_domain=${var.bot_subdomain != "" ? "${var.bot_subdomain}.${var.cloudflare_zone}" : ""}
+panel_domain=${local.panel_config.domain.panel_subdomain}.${local.panel_config.domain.zone}
+sub_domain=${local.panel_config.domain.sub_subdomain != "" ? "${local.panel_config.domain.sub_subdomain}.${local.panel_config.domain.zone}" : ""}
 EOT
   file_permission = "0644"
 }
@@ -115,6 +118,6 @@ output "panel_ip" {
 }
 
 output "panel_domain" {
-  value       = "${var.panel_subdomain}.${var.cloudflare_zone}"
+  value       = "${local.panel_config.domain.panel_subdomain}.${local.panel_config.domain.zone}"
   description = "Full domain name of the Panel"
 }

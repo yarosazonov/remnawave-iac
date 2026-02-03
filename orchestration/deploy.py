@@ -220,19 +220,12 @@ def create_panel_tfvars() -> None:
             panel_config = yaml.safe_load(f)
         
         tf_vars = {
-            "cloudflare_zone": os.environ['CLOUDFLARE_ZONE'],
             "admin_username": os.getenv('ADMIN_USERNAME', 'admin'),
             "admin_key_path": os.environ['ADMIN_KEY_PATH'],
             "ansible_username": ANSIBLE_USERNAME,
             "ansible_key_path": str(ANSIBLE_KEY_PATH),
             "ansible_allowed_ip": os.getenv('ANSIBLE_STATIC_SSH_IP', ""),
             "ansible_inventory_path": str(ANSIBLE_DIR / 'inventory/panel.ini'),
-            # Panel server configuration from panel.yaml
-            "panel_server_region": panel_config['server']['region'],
-            "panel_server_plan": panel_config['server']['plan'],
-            "panel_subdomain": os.getenv('PANEL_SUBDOMAIN', 'panel'),
-            "subscription_subdomain": os.getenv('SUBSCRIPTION_SUBDOMAIN', ''),
-            "bot_subdomain": os.getenv('BOT_SUBDOMAIN', ''),
         }
         
         target = PANEL_TF_DIR / "panel.auto.tfvars.json"
@@ -257,18 +250,7 @@ def create_nodes_tfvars() -> None:
             logger.warning("⚠️  Warning: ACTIVE_INBOUNDS is not valid JSON. Treating as raw string.")
             active_inbounds = os.environ['ACTIVE_INBOUNDS']
 
-        # Load nodes from nodes.yaml file
-        nodes_file = OPS_DIR / "config" / "nodes.yaml"
-        if not nodes_file.exists():
-            logger.critical(f"❌ nodes.yaml not found at {nodes_file}")
-            sys.exit(1)
-        
-        with open(nodes_file) as f:
-            nodes_vultr = yaml.safe_load(f)
-
         tf_vars = {
-            "cloudflare_zone": os.environ['CLOUDFLARE_ZONE'],
-            "panel_domain": os.environ['PANEL_DOMAIN'],
             "config_profile_uuid": os.environ['CONFIG_PROFILE_UUID'],
             "active_inbounds": active_inbounds,
             "node_port": os.environ['NODE_PORT'],
@@ -278,7 +260,6 @@ def create_nodes_tfvars() -> None:
             "ansible_key_path": str(ANSIBLE_KEY_PATH),
             "ansible_allowed_ip": os.getenv('ANSIBLE_STATIC_SSH_IP', ""),
             "ansible_inventory_path": str(ANSIBLE_DIR / 'inventory/nodes.ini'),
-            "nodes_vultr": nodes_vultr,
         }
 
         # Export secrets to ENV for Terraform
@@ -321,7 +302,7 @@ def run_terraform_plan_and_apply(cwd: Path, destroy: bool = False) -> None:
         logger.info("⚠️  CRITICAL: Review the plan above.")
         confirm = input("    Do you want to apply these changes? (y/n) ")
         if confirm.lower() not in ["y", "yes"]:
-            logger.info("🚫 Deployment cancelled.")
+            logger.info("🚫 Execution is cancelled.")
             if (cwd / "tfplan").exists():
                 (cwd / "tfplan").unlink()
             sys.exit(0) # Exit script if user cancels
@@ -367,7 +348,7 @@ def handle_panel(args):
     if args.action == "destroy":
         logger.warning("🔥 DESTROYING PANEL")
         run_terraform_plan_and_apply(PANEL_TF_DIR, destroy=True)
-        logger.info("✅ Panel destroyed.")
+        logger.info("✅ Panel Destroyed.")
         return
 
     # Check if panel already exists
@@ -391,14 +372,13 @@ def handle_panel(args):
     # Update local .env with Panel IP and domain
     env_path = OPS_DIR / ".env"
     set_key(env_path, "PANEL_IP", panel_ip)
-    set_key(env_path, "PANEL_DOMAIN", panel_domain)
     set_key(env_path, "KRISA_BOT_REMNAWAVE_PANEL_DOMAIN", panel_domain)
 
     # Reload variables into the environment to apply changes
     load_dotenv(env_path, override=True)
-    logger.info(f"💾 Updated PANEL_IP and PANEL_URL in {env_path}")
+    logger.info(f"💾 Updated PANEL_IP in {env_path}")
 
-    logger.info(f"✅ Panel Active: {panel_domain} ({panel_ip})")
+    logger.info(f"✅ Panel Server is Live: {panel_domain} ({panel_ip})")
     
     # Ansible
     if args.action == "restore":
@@ -411,7 +391,7 @@ def handle_panel(args):
         logger.info("🔧 Configuring Panel Software...")
         extra_vars = [f"reboot_infra={reboot_flag}"]
         run_ansible_playbook('panel-fresh.yml', extra_vars=extra_vars)
-        logger.info(f"🎉 Panel Deployment Complete!\n{panel_ip}")
+        logger.info(f"🎉 Panel Deployment Complete!\n{panel_domain} ({panel_ip})")
 
 
 def handle_node(args):
@@ -485,48 +465,44 @@ def handle_bot(args):
     if not bot_role:
         logger.critical(f"❌ Unknown bot name: {args.bot_name}. Available: {list(bot_map.keys())}")
         sys.exit(1)
-
-    bot_subdomain = os.getenv('BOT_SUBDOMAIN', '')
-    if bot_subdomain:
-        # We need Panel IP.
-        panel_ip = os.getenv('PANEL_IP')
+    
+    # We need Panel IP.
+    panel_ip = os.getenv('PANEL_IP')
         
-        # If missing during destroy, use dummy to satisfy Terraform
-        if not panel_ip and args.action == "destroy":
-             panel_ip = "0.0.0.0"
+    # If missing during destroy, use dummy to satisfy Terraform
+    if not panel_ip and args.action == "destroy":
+         panel_ip = "0.0.0.0"
 
-        if not panel_ip:
-            logger.critical("❌ PANEL_IP not found in environment. Please deploy panel first.")
-            sys.exit(1)
+    if not panel_ip:
+        logger.critical("❌ PANEL_IP not found in environment.")
+        sys.exit(1)
 
-        tf_vars = {
-            "cloudflare_zone": os.environ['CLOUDFLARE_ZONE'],
-            "bot_subdomain": bot_subdomain,
-            "panel_ip": panel_ip,
-        }
-        
-        target = BOT_DNS_TF_DIR / "tg-bot.auto.tfvars.json"
-        with open(target, "w") as f:
-            json.dump(tf_vars, f, indent=2)
-        
-        run_terraform_cmd(["init"], cwd=BOT_DNS_TF_DIR)
-
-        if args.action == "destroy":
-            logger.warning("🔥 DESTROYING BOT DNS")
-            run_terraform_plan_and_apply(BOT_DNS_TF_DIR, destroy=True)
-            logger.info("✅ Bot DNS Record destroyed.")
-        else:
-            # Deploy Bot DNS
-            logger.info("🌍 Managing Bot DNS Record...")
-            run_terraform_plan_and_apply(BOT_DNS_TF_DIR)
+    tf_vars = {
+        "panel_ip": panel_ip,
+        "ansible_inventory_path": str(ANSIBLE_DIR / 'inventory/bot.ini'),
+    }
+    
+    target = BOT_DNS_TF_DIR / "tg-bot.auto.tfvars.json"
+    with open(target, "w") as f:
+        json.dump(tf_vars, f, indent=2)
+    
+    run_terraform_cmd(["init"], cwd=BOT_DNS_TF_DIR)
 
     if args.action == "destroy":
-        logger.warning(f"🔥 DESTROYING BOT CONTAINER ({args.bot_name})")
-        run_ansible_playbook('bot-destroy.yml')
-        logger.info(f"✅ {args.bot_name} Container destroyed.")
-        return
+        logger.warning("🔥 DESTROYING BOT INFRA")
+        run_terraform_plan_and_apply(BOT_DNS_TF_DIR, destroy=True)
+        logger.info("✅ Bot Infra Destroyed.")
 
-    if args.action == "deploy":
+        logger.warning(f"🔥 REMOVING BOT SETUP ({args.bot_name})")
+        run_ansible_playbook('bot-destroy.yml')
+        logger.info(f"✅ BOT Setup Removed ({args.bot_name})")
+        
+
+    elif args.action == "deploy":
+        # 1. Deploy Bot DNS
+        logger.info("🌍 Managing Bot DNS Record...")
+        run_terraform_plan_and_apply(BOT_DNS_TF_DIR)
+
         # 2. Deploy Bot Role
         logger.info(f"🤖 Deploying Bot: {args.bot_name}...")
         run_ansible_playbook('bot-deploy.yml', extra_vars=[f"bot_role={bot_role}"])

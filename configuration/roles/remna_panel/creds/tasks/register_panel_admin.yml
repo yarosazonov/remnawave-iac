@@ -14,7 +14,7 @@
     return_content: true
   register: login_response
   until: login_response.status != -1
-  retries: 60
+  retries: 10
   delay: 1
 
 - name: Register if login failed

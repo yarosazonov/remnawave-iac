@@ -15,6 +15,17 @@
         path: /opt/remnawave/docker-compose.override.yml
         state: absent
 
+    - name: Remove Bot Caddy Configuration
+      file:
+        path: /opt/remnawave/caddy/site-confs/bot.caddy
+        state: absent
+
+    - name: Reload Caddy
+      community.docker.docker_container_exec:
+        container: caddy
+        command: caddy reload --config /etc/caddy/Caddyfile
+      ignore_errors: true
+
     - name: Update Remnawave Panel Configuration
       community.docker.docker_compose_v2:
         project_src: /opt/remnawave

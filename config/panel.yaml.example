@@ -13,3 +13,9 @@
 server:
   region: ams
   plan: vhf-1c-1gb
+  hostname: remna-panel
+
+domain:
+  zone: example.com
+  panel_subdomain: panel
+  sub_subdomain: sub
