@@ -36,6 +36,24 @@
   until: update_default_squad_response.status == 200
   when: default_squad is not none
 
+- name: Check if KRISA_BOT_SQUADS is set
+  command: grep -E "^KRISA_BOT_SQUADS=['\"]?[a-zA-Z0-9]" "{{ playbook_dir }}/../../.env"
+  delegate_to: localhost
+  become: false
+  register: krisa_squads_check
+  failed_when: false
+  changed_when: false
+
+- name: Write Default Squad UUID to .env
+  lineinfile:
+    path: "{{ playbook_dir }}/../../.env"
+    regexp: "^KRISA_BOT_SQUADS="
+    line: "KRISA_BOT_SQUADS='{{ default_squad.uuid }}'"
+    create: yes
+  when: default_squad is not none and krisa_squads_check.rc != 0
+  delegate_to: localhost
+  become: false
+
 # Admin-Squad creation
 - name: Check if Admin-Squad exists
   ansible.builtin.set_fact:

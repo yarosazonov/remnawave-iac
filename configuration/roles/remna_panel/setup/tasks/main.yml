@@ -12,8 +12,8 @@
     src: panel.env.j2
     dest: /opt/remnawave/.env
 
-- name: Create docker-compose.yml
-  copy:
+- name: Create remnawave docker-compose.yml
+  ansible.builtin.copy:
     src: docker-compose.yml
     dest: /opt/remnawave/docker-compose.yml
     owner: "{{ ansible_user }}"

@@ -10,6 +10,17 @@
         state: absent
       ignore_errors: true
 
+    - name: Remove remnawave docker-compose.override.yml
+      file:
+        path: /opt/remnawave/docker-compose.override.yml
+        state: absent
+
+    - name: Update Remnawave Panel Configuration
+      community.docker.docker_compose_v2:
+        project_src: /opt/remnawave
+        state: present
+        pull: never
+
     - name: Remove Krisa Bot directory
       file:
         path: /opt/krisa-bot

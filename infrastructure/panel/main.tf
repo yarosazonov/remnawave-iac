@@ -67,7 +67,7 @@ resource "vultr_instance" "panel" {
   }
 }
 
-# DNS Record: panel.domain.com
+# Panel DNS Record
 resource "cloudflare_dns_record" "panel" {
   zone_id = data.cloudflare_zone.main.id
   name    = var.panel_subdomain
@@ -78,7 +78,7 @@ resource "cloudflare_dns_record" "panel" {
   ttl     = 300
 }
 
-# DNS Record: sub.domain.com
+# Subpage DNS Record
 resource "cloudflare_dns_record" "subscription" {
   # CONDITION ? TRUE : FALSE
   count   = var.subscription_subdomain != "" ? 1 : 0
@@ -103,6 +103,7 @@ ansible_user=${var.ansible_username}
 ansible_ssh_private_key_file=${var.ansible_key_path}
 panel_domain=${var.panel_subdomain}.${var.cloudflare_zone}
 sub_domain=${var.subscription_subdomain != "" ? "${var.subscription_subdomain}.${var.cloudflare_zone}" : ""}
+bot_domain=${var.bot_subdomain != "" ? "${var.bot_subdomain}.${var.cloudflare_zone}" : ""}
 EOT
   file_permission = "0644"
 }

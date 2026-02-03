@@ -21,6 +21,7 @@ ANSIBLE_DIR = (OPS_DIR / "configuration").resolve()
 
 PANEL_TF_DIR = INFRA_DIR / "panel"
 NODES_TF_DIR = INFRA_DIR / "nodes"
+BOT_DNS_TF_DIR = INFRA_DIR / "tg-bot"
 
 ANSIBLE_KEY_PATH = Path("~/.ssh/ansible_key").expanduser()
 ANSIBLE_USERNAME = "ansible_automaton"
@@ -105,6 +106,7 @@ def ensure_secrets() -> None:
         "METRICS_PASS": (16, 'hex'),
         "PANEL_ADMIN_PASSWORD": (24, 'complex'),
         "BACKUP_PASSWORD": (24, 'hex'),
+        "KRISA_BOT_TG_WEBHOOK_SECRET": (32, 'hex')
     }
     
     updates_made = False
@@ -131,6 +133,12 @@ def ensure_secrets() -> None:
             # Update current process env so subsequent steps see it
             os.environ[key] = new_secret
             updates_made = True
+
+    # Sync Panel Webhook Secret to Bot
+    # The Bot needs the EXACT same secret as the Panel uses to verify incoming requests
+    panel_webhook_secret = os.getenv("WEBHOOK_SECRET_HEADER")
+    set_key(env_path, "KRISA_BOT_REMNAWAVE_WEBHOOK_SECRET_HEADER", panel_webhook_secret)
+    updates_made = True
             
     if updates_made:
         logger.info("💾 Secrets updated in .env")
@@ -222,8 +230,9 @@ def create_panel_tfvars() -> None:
             # Panel server configuration from panel.yaml
             "panel_server_region": panel_config['server']['region'],
             "panel_server_plan": panel_config['server']['plan'],
-            "panel_subdomain": panel_config['subdomains']['panel'],
-            "subscription_subdomain": panel_config['subdomains'].get('subscription', ''),
+            "panel_subdomain": os.getenv('PANEL_SUBDOMAIN', 'panel'),
+            "subscription_subdomain": os.getenv('SUBSCRIPTION_SUBDOMAIN', ''),
+            "bot_subdomain": os.getenv('BOT_SUBDOMAIN', ''),
         }
         
         target = PANEL_TF_DIR / "panel.auto.tfvars.json"
@@ -259,7 +268,7 @@ def create_nodes_tfvars() -> None:
 
         tf_vars = {
             "cloudflare_zone": os.environ['CLOUDFLARE_ZONE'],
-            "panel_url": os.environ['PANEL_URL'],
+            "panel_domain": os.environ['PANEL_DOMAIN'],
             "config_profile_uuid": os.environ['CONFIG_PROFILE_UUID'],
             "active_inbounds": active_inbounds,
             "node_port": os.environ['NODE_PORT'],
@@ -379,13 +388,11 @@ def handle_panel(args):
         logger.info("🆕 Fresh Panel Deployment detected.")
         reboot_flag = "true"
 
-    # Update local .env with Panel IP and URL
+    # Update local .env with Panel IP and domain
     env_path = OPS_DIR / ".env"
     set_key(env_path, "PANEL_IP", panel_ip)
-    
-    # Construct and save PANEL_URL
-    panel_url = f"https://{panel_domain}"
-    set_key(env_path, "PANEL_URL", panel_url)
+    set_key(env_path, "PANEL_DOMAIN", panel_domain)
+    set_key(env_path, "KRISA_BOT_REMNAWAVE_PANEL_DOMAIN", panel_domain)
 
     # Reload variables into the environment to apply changes
     load_dotenv(env_path, override=True)
@@ -404,7 +411,7 @@ def handle_panel(args):
         logger.info("🔧 Configuring Panel Software...")
         extra_vars = [f"reboot_infra={reboot_flag}"]
         run_ansible_playbook('panel-fresh.yml', extra_vars=extra_vars)
-        logger.info("🎉 Panel Deployment Complete!")
+        logger.info(f"🎉 Panel Deployment Complete!\n{panel_ip}")
 
 
 def handle_node(args):
@@ -463,6 +470,96 @@ def handle_node(args):
                logger.info(f"   - {h}: {actual_nodes_map.get(h)}")
 
 
+
+
+def handle_bot(args):
+    """Orchestrate Bot Deployment."""
+    logger.info("🔹 Mode: BOT")
+
+    # Map friendly names to ansible roles
+    bot_map = {
+        "krisa": "krisa_bot"
+    }
+
+    bot_role = bot_map.get(args.bot_name)
+    if not bot_role:
+        logger.critical(f"❌ Unknown bot name: {args.bot_name}. Available: {list(bot_map.keys())}")
+        sys.exit(1)
+
+    bot_subdomain = os.getenv('BOT_SUBDOMAIN', '')
+    if bot_subdomain:
+        # We need Panel IP.
+        panel_ip = os.getenv('PANEL_IP')
+        
+        # If missing during destroy, use dummy to satisfy Terraform
+        if not panel_ip and args.action == "destroy":
+             panel_ip = "0.0.0.0"
+
+        if not panel_ip:
+            logger.critical("❌ PANEL_IP not found in environment. Please deploy panel first.")
+            sys.exit(1)
+
+        tf_vars = {
+            "cloudflare_zone": os.environ['CLOUDFLARE_ZONE'],
+            "bot_subdomain": bot_subdomain,
+            "panel_ip": panel_ip,
+        }
+        
+        target = BOT_DNS_TF_DIR / "tg-bot.auto.tfvars.json"
+        with open(target, "w") as f:
+            json.dump(tf_vars, f, indent=2)
+        
+        run_terraform_cmd(["init"], cwd=BOT_DNS_TF_DIR)
+
+        if args.action == "destroy":
+            logger.warning("🔥 DESTROYING BOT DNS")
+            run_terraform_plan_and_apply(BOT_DNS_TF_DIR, destroy=True)
+            logger.info("✅ Bot DNS Record destroyed.")
+        else:
+            # Deploy Bot DNS
+            logger.info("🌍 Managing Bot DNS Record...")
+            run_terraform_plan_and_apply(BOT_DNS_TF_DIR)
+
+    if args.action == "destroy":
+        logger.warning(f"🔥 DESTROYING BOT CONTAINER ({args.bot_name})")
+        run_ansible_playbook('bot-destroy.yml')
+        logger.info(f"✅ {args.bot_name} Container destroyed.")
+        return
+
+    if args.action == "deploy":
+        # 2. Deploy Bot Role
+        logger.info(f"🤖 Deploying Bot: {args.bot_name}...")
+        run_ansible_playbook('bot-deploy.yml', extra_vars=[f"bot_role={bot_role}"])
+        logger.info(f"🎉 {args.bot_name} Bot Deployment Complete!")
+
+
+def handle_backup(args):
+    """Orchestrate Backup Setup."""
+    logger.info("🔹 Mode: BACKUP")
+
+    if args.action == "setup":
+        logger.info("💾 Setting up Backups...")
+        extra_vars = []
+        if args.krisa:
+            logger.info("   + Including Krisa Bot Backup")
+            extra_vars.append("krisa_bot_backup=true")
+        else:
+            extra_vars.append("krisa_bot_backup=false")
+            
+        run_ansible_playbook('backup-setup.yml', extra_vars=extra_vars)
+        logger.info("🎉 Backup Setup Complete!")
+
+    elif args.action == "force":
+        logger.info("⚡ Forcing Backups...")
+        extra_vars = []
+        if args.krisa:
+            logger.info("   + Including Krisa Bot Backup")
+            extra_vars.append("krisa_bot_backup=true")
+        
+        run_ansible_playbook('backup-force.yml', extra_vars=extra_vars)
+        logger.info("🎉 Backup Execution Complete!")
+
+
 def main():
     parser = argparse.ArgumentParser(description="KrisaVPN Deployment Orchestrator")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
@@ -480,6 +577,18 @@ def main():
     node_parser = subparsers.add_parser("node", help="Manage Node Infrastructure")
     node_parser.add_argument("action", choices=["deploy", "destroy", "reboot"], help="Action to perform")
     node_parser.set_defaults(func=handle_node)
+
+    # Bot Subcommand
+    bot_parser = subparsers.add_parser("bot", help="Deploy Bots")
+    bot_parser.add_argument("action", choices=["deploy", "destroy"], help="Action to perform")
+    bot_parser.add_argument("bot_name", nargs="?", default="krisa", help="Name of the bot to deploy (default: krisa)")
+    bot_parser.set_defaults(func=handle_bot)
+
+    # Backup Subcommand
+    backup_parser = subparsers.add_parser("backup", help="Manage Backups")
+    backup_parser.add_argument("action", choices=["setup", "force"], help="Action to perform")
+    backup_parser.add_argument("--krisa", action="store_true", help="Include Krisa Bot backups")
+    backup_parser.set_defaults(func=handle_backup)
 
     args = parser.parse_args()
 

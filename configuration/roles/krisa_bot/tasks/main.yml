@@ -30,8 +30,8 @@
     mode: "0600"
 
 - name: Create docker-compose.yml
-  template:
-    src: docker-compose.yml.j2
+  copy:
+    src: docker-compose.yml
     dest: /opt/krisa-bot/docker-compose.yml
     owner: "{{ admin_username }}"
     group: "{{ admin_username }}"
@@ -44,6 +44,20 @@
     mode: "0755"
     owner: "1000"
     group: "1000"
+
+- name: Create remnawave docker-compose.override.yml
+  template:
+    src: panel_docker-compose.override.yml.j2
+    dest: /opt/remnawave/docker-compose.override.yml
+    owner: "{{ admin_username }}"
+    group: "{{ admin_username }}"
+    mode: "0644"
+
+- name: Update Remnawave Panel Configuration
+  community.docker.docker_compose_v2:
+    project_src: /opt/remnawave
+    state: present
+    pull: never
 
 - name: Start Krisa Bot Stack
   community.docker.docker_compose_v2:

@@ -6,7 +6,9 @@ services:
     ports:
       - "127.0.0.1:4000:4000"
     extra_hosts:
-      - "{{ panel_domain }}:host-gateway"
+      # we need to go through caddy to bypass panel's X headers check
+      # so we set to resolve panel domain to host gateway to route traffic locally
+      - "${REMNAWAVE_PANEL_DOMAIN}:host-gateway"
     env_file:
       - .env
     volumes:
@@ -16,10 +18,10 @@ services:
       - remnawave-network
     restart: unless-stopped
 
-networks:
-  remnawave-network:
-    external: true
-
 volumes:
   bot-db:
     driver: local
+
+networks:
+  remnawave-network:
+    external: true

@@ -47,7 +47,7 @@ data "cloudflare_zone" "main" {
 # === PROVIDERS ===
 
 provider "restapi" {
-  uri                  = "${var.panel_url}/api"
+  uri                  = "https://${var.panel_domain}/api"
   write_returns_object = true
   debug                = true
 

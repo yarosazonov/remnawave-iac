@@ -57,3 +57,9 @@ variable "ansible_inventory_path" {
   description = "Path to write the Ansible inventory fragment"
   type        = string
 }
+
+variable "bot_subdomain" {
+  description = "Subdomain for the Telegram bot (e.g. 'bot')"
+  type        = string
+  default     = ""
+}

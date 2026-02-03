@@ -16,9 +16,9 @@ variable "PANEL_API_TOKEN" {
   description = "Remna panel API token"
 }
 
-variable "panel_url" {
+variable "panel_domain" {
   type        = string
-  description = "Remna panel URL (including protocol, e.g. https://panel.example.com)"
+  description = "Remna panel Domain (e.g. panel.example.com)"
 }
 
 
