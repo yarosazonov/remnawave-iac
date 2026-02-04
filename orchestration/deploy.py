@@ -139,7 +139,6 @@ def ensure_secrets() -> None:
         # Reload to be safe
         load_dotenv(env_path, override=True)
 
-
 def run_terraform_cmd(args: list[str], cwd: Path, capture_output: bool = False, check: bool = True, log_error: bool = True) -> subprocess.CompletedProcess:
     """Run a terraform command in the specified directory."""
     cmd_str = f"terraform {' '.join(args)}"
@@ -199,50 +198,34 @@ def run_ansible_playbook(playbook_name: str, limit_arg: str = "", extra_vars: li
         logger.critical("❌ Ansible execution failed.")
         sys.exit(1)
 
-
-
-def create_panel_tfvars() -> None:
-    """Generates proper tfvars for the Panel stack."""
+def generate_tfvars(service_name: str) -> None:
+    """Generic function to generate tfvars."""
+    tf_dir = INFRA_DIR / service_name
+    inventory_file = f"{service_name}.ini"
+    
     try:
         tf_vars = {
             "ansible_username": ANSIBLE_USERNAME,
             "ansible_key_path": str(ANSIBLE_KEY_PATH),
-            "ansible_inventory_path": str(ANSIBLE_DIR / 'inventory/panel.ini'),
-        }
-        
-        target = PANEL_TF_DIR / "panel.auto.tfvars.json"
-        with open(target, "w") as f:
-            json.dump(tf_vars, f, indent=2)
-            
-        logger.debug(f"Generated {target}")
-
-    except Exception as e: # Catching a more general exception now that specific KeyError is gone
-        logger.critical(f"❌ Error generating panel tfvars: {e}")
-        sys.exit(1)
-
-def create_nodes_tfvars() -> None:
-    """Generates proper tfvars for the Node stack."""
-    try:
-        tf_vars = {
-            "ansible_username": ANSIBLE_USERNAME,
-            "ansible_key_path": str(ANSIBLE_KEY_PATH),
-            "ansible_inventory_path": str(ANSIBLE_DIR / 'inventory/nodes.ini'),
+            "ansible_inventory_path": str(ANSIBLE_DIR / f'inventory/{inventory_file}'),
         }
 
-        # Export secrets to ENV for Terraform
-        # VULTR_API_KEY and CLOUDFLARE_API_TOKEN are hooked up automatically by terraform
-        os.environ["TF_VAR_PANEL_API_TOKEN"] = os.environ["PANEL_API_TOKEN"]
+        # Specific logic for nodes
+        if service_name == "nodes":
+             os.environ["TF_VAR_PANEL_API_TOKEN"] = os.environ["PANEL_API_TOKEN"]
 
-        target = NODES_TF_DIR / "nodes.auto.tfvars.json"
+        target = tf_dir / f"{service_name}.auto.tfvars.json"
         with open(target, "w") as f:
             json.dump(tf_vars, f, indent=2)
 
         logger.debug(f"Generated {target}")
 
     except KeyError as e:
-        logger.critical(f"❌ Missing required env var for Nodes: {e}")
+        logger.critical(f"❌ Missing required env var for {service_name}: {e}")
         sys.exit(1)
-
+    except Exception as e:
+        logger.critical(f"❌ Error generating {service_name} tfvars: {e}")
+        sys.exit(1)
 
 def run_terraform_plan_and_apply(cwd: Path, destroy: bool = False) -> None:
     """Runs terraform plan, asks for confirmation, and applies if confirmed."""
@@ -284,7 +267,6 @@ def run_terraform_plan_and_apply(cwd: Path, destroy: bool = False) -> None:
         logger.critical("❌ Error generating Terraform plan.")
         sys.exit(1)
 
-
 # === Workflow Handlers ===
 
 def handle_panel(args):
@@ -309,7 +291,7 @@ def handle_panel(args):
             logger.info("🔑 New secrets mode: will recreate admin and API tokens")
 
     ensure_secrets()
-    create_panel_tfvars()
+    generate_tfvars("panel")
     run_terraform_cmd(["init"], cwd=PANEL_TF_DIR)
     
     if args.action == "destroy":
@@ -373,7 +355,6 @@ def handle_panel(args):
         run_ansible_playbook('panel-fresh.yml', extra_vars=extra_vars)
         logger.info(f"🎉 Panel Deployment Complete!\n{panel_domain} ({panel_ip})")
 
-
 def handle_node(args):
     """Orchestrate Node Deployment."""
     logger.info("🔹 Mode: NODE")
@@ -384,7 +365,7 @@ def handle_node(args):
         return
 
     # Create tfvars and init terraform for deploy/destroy
-    create_nodes_tfvars()
+    generate_tfvars('nodes')
     run_terraform_cmd(["init"], cwd=NODES_TF_DIR)
 
     if args.action == "destroy":
@@ -428,7 +409,6 @@ def handle_node(args):
             logger.info("   New Nodes Deployed:")
             for h in new_hostnames:
                logger.info(f"   - {h}: {actual_nodes_map.get(h)}")
-
 
 def handle_bot(args):
     """Orchestrate Bot Deployment."""
@@ -492,7 +472,6 @@ def handle_bot(args):
         logger.info(f"🤖 Deploying Bot: {args.bot_name}...")
         run_ansible_playbook('bot-deploy.yml', extra_vars=[f"bot_role={bot_role}"])
         logger.info(f"🎉 {args.bot_name} Bot Deployment Complete!")
-
 
 def handle_backup(args):
     """Orchestrate Backup Setup."""
