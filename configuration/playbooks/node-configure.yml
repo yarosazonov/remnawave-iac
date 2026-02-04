@@ -14,14 +14,20 @@
   hosts: remna_nodes
   become: true
 
+  vars_files:
+    - "../../config/panel.yaml"
+    - "../../config/nodes.yaml"
+
   # Global Variables
   vars:
+    panel_ip: "{{ server.panel_ip }}"
+    node_port: "{{ settings.node_port }}"
     docker_arch_map:
       x86_64: amd64
       aarch64: arm64
     docker_users:
       - "{{ ansible_user }}"
-      - "{{ lookup('ansible.builtin.env', 'ADMIN_USERNAME') | default('admin', true) }}"
+      - "{{ settings.admin.username }}"
 
   roles:
     - role: ufw

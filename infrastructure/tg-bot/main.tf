@@ -33,19 +33,3 @@ resource "cloudflare_dns_record" "bot" {
   comment = "Managed by Terraform (Bot Stack)"
   ttl     = 300
 }
-
-variable "ansible_inventory_path" {
-  type = string
-}
-
-resource "local_file" "bot_inventory" {
-  filename        = var.ansible_inventory_path
-  content         = <<EOT
-[remna_tg_bot]
-remna-panel
-
-[remna_tg_bot:vars]
-bot_domain=${local.bot_config.domain.bot_subdomain}.${local.bot_config.domain.zone}
-EOT
-  file_permission = "0644"
-}

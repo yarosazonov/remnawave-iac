@@ -23,7 +23,7 @@
 
 - name: Allow cAdvisor Port (from Monitoring IP only)
   vars:
-    monitoring_ip: "{{ lookup('ansible.builtin.env', 'MONITORING_IP') | default('') }}"
+    monitoring_ip: "{{ settings.monitoring_ip | default('') }}"
   community.general.ufw:
     rule: allow
     port: "8090"

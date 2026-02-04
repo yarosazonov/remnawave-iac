@@ -2,7 +2,7 @@
 - name: Setup Backups
   hosts: remnawave_panel
   become: true
-  
+
   vars:
     # Default to false if not provided
     krisa_bot_backup: "{{ krisa_bot_backup | default(false) | bool }}"

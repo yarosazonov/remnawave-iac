@@ -5,9 +5,19 @@
   gather_facts: false
 
   vars:
-    krisa_bot_backup: false
+    krisa_bot_backup: "{{ krisa_bot_backup | default(false) | bool }}"
 
   tasks:
+    - name: Ensure Backup Image is Built
+      community.docker.docker_image:
+        name: remnawave-backup
+        tag: latest
+        source: build
+        build:
+          path: /opt/remnawave-backups/scripts
+        state: present
+        force_source: false # Only rebuild if necessary
+
     - name: Run Panel Backup (PostgreSQL)
       ansible.builtin.shell:
         cmd: |
@@ -33,12 +43,12 @@
 
     - name: Show Panel Backup Output
       ansible.builtin.debug:
-        msg: 
+        msg:
           - "STDOUT: {{ panel_backup_result.stdout_lines }}"
           - "STDERR: {{ panel_backup_result.stderr_lines }}"
 
     - name: Show Krisa Bot Backup Output
       ansible.builtin.debug:
-        msg: 
+        msg:
           - "STDOUT: {{ krisa_backup_result.stdout_lines | default('Skipped') }}"
           - "STDERR: {{ krisa_backup_result.stderr_lines | default('Skipped') }}"

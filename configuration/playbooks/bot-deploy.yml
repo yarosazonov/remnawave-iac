@@ -2,7 +2,14 @@
 - name: Deploy Bot
   hosts: remnawave_panel
   become: true
-  
+
+  vars_files:
+    - "../../config/panel.yaml"
+    - "../../config/bot.yaml"
+
+  vars:
+    bot_domain: "{{ domain.bot_subdomain }}.{{ domain.zone }}"
+
   tasks:
     - name: Run Bot Role
       include_role:

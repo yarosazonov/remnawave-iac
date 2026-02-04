@@ -133,13 +133,7 @@ def ensure_secrets() -> None:
             # Update current process env so subsequent steps see it
             os.environ[key] = new_secret
             updates_made = True
-
-    # Sync Panel Webhook Secret to Bot
-    # The Bot needs the EXACT same secret as the Panel uses to verify incoming requests
-    panel_webhook_secret = os.getenv("WEBHOOK_SECRET_HEADER")
-    set_key(env_path, "KRISA_BOT_REMNAWAVE_WEBHOOK_SECRET_HEADER", panel_webhook_secret)
-    updates_made = True
-            
+                  
     if updates_made:
         logger.info("💾 Secrets updated in .env")
         # Reload to be safe
@@ -210,21 +204,9 @@ def run_ansible_playbook(playbook_name: str, limit_arg: str = "", extra_vars: li
 def create_panel_tfvars() -> None:
     """Generates proper tfvars for the Panel stack."""
     try:
-        # Load panel config from panel.yaml
-        panel_file = OPS_DIR / "config" / "panel.yaml"
-        if not panel_file.exists():
-            logger.critical(f"❌ panel.yaml not found at {panel_file}")
-            sys.exit(1)
-        
-        with open(panel_file) as f:
-            panel_config = yaml.safe_load(f)
-        
         tf_vars = {
-            "admin_username": os.getenv('ADMIN_USERNAME', 'admin'),
-            "admin_key_path": os.environ['ADMIN_KEY_PATH'],
             "ansible_username": ANSIBLE_USERNAME,
             "ansible_key_path": str(ANSIBLE_KEY_PATH),
-            "ansible_allowed_ip": os.getenv('ANSIBLE_STATIC_SSH_IP', ""),
             "ansible_inventory_path": str(ANSIBLE_DIR / 'inventory/panel.ini'),
         }
         
@@ -234,31 +216,16 @@ def create_panel_tfvars() -> None:
             
         logger.debug(f"Generated {target}")
 
-    except KeyError as e:
-        logger.critical(f"❌ Missing required config in panel.yaml: {e}")
+    except Exception as e: # Catching a more general exception now that specific KeyError is gone
+        logger.critical(f"❌ Error generating panel tfvars: {e}")
         sys.exit(1)
 
 def create_nodes_tfvars() -> None:
     """Generates proper tfvars for the Node stack."""
-    # Required vars from environment
     try:
-        # Parse list from env if possible, otherwise treat as string/HCL-ready string
-        try:
-            active_inbounds = json.loads(os.environ['ACTIVE_INBOUNDS'])
-        except json.JSONDecodeError:
-            # Fallback for manual string formatting compatibility or if already HCL-ish
-            logger.warning("⚠️  Warning: ACTIVE_INBOUNDS is not valid JSON. Treating as raw string.")
-            active_inbounds = os.environ['ACTIVE_INBOUNDS']
-
         tf_vars = {
-            "config_profile_uuid": os.environ['CONFIG_PROFILE_UUID'],
-            "active_inbounds": active_inbounds,
-            "node_port": os.environ['NODE_PORT'],
-            "admin_username": os.environ['ADMIN_USERNAME'],
-            "admin_key_path": os.environ['ADMIN_KEY_PATH'],
             "ansible_username": ANSIBLE_USERNAME,
             "ansible_key_path": str(ANSIBLE_KEY_PATH),
-            "ansible_allowed_ip": os.getenv('ANSIBLE_STATIC_SSH_IP', ""),
             "ansible_inventory_path": str(ANSIBLE_DIR / 'inventory/nodes.ini'),
         }
 
@@ -369,15 +336,28 @@ def handle_panel(args):
         logger.info("🆕 Fresh Panel Deployment detected.")
         reboot_flag = "true"
 
-    # Update local .env with Panel IP and domain
-    env_path = OPS_DIR / ".env"
-    set_key(env_path, "PANEL_IP", panel_ip)
-    set_key(env_path, "KRISA_BOT_REMNAWAVE_PANEL_DOMAIN", panel_domain)
+    # Update panel.yaml with Panel IP 
+    panel_file = OPS_DIR / "config" / "panel.yaml"
+    if panel_file.exists():
+        with open(panel_file, 'r') as f:
+            content = f.read()
+        
+        import re
+        # Replace the entire panel_ip line
+        updated_content = re.sub(
+            r'^\s*panel_ip:.*$',
+            f'  panel_ip: {panel_ip}',
+            content,
+            flags=re.MULTILINE
+        )
+        
+        with open(panel_file, 'w') as f:
+            f.write(updated_content)
+            
+        logger.info(f"💾 Updated panel_ip in {panel_file}")
 
-    # Reload variables into the environment to apply changes
-    load_dotenv(env_path, override=True)
-    logger.info(f"💾 Updated PANEL_IP in {env_path}")
 
+    logger.info(f"💾 Updated panel_ip in {panel_file}")
     logger.info(f"✅ Panel Server is Live: {panel_domain} ({panel_ip})")
     
     # Ansible
@@ -450,8 +430,6 @@ def handle_node(args):
                logger.info(f"   - {h}: {actual_nodes_map.get(h)}")
 
 
-
-
 def handle_bot(args):
     """Orchestrate Bot Deployment."""
     logger.info("🔹 Mode: BOT")
@@ -467,19 +445,26 @@ def handle_bot(args):
         sys.exit(1)
     
     # We need Panel IP.
-    panel_ip = os.getenv('PANEL_IP')
+    # Read from panel.yaml
+    panel_file = OPS_DIR / "config" / "panel.yaml"
+    panel_ip = None
+    
+    if panel_file.exists():
+        with open(panel_file, 'r') as f:
+            panel_config = yaml.safe_load(f) or {}
+            panel_ip = panel_config.get('server', {}).get('panel_ip')
+
         
     # If missing during destroy, use dummy to satisfy Terraform
     if not panel_ip and args.action == "destroy":
          panel_ip = "0.0.0.0"
 
     if not panel_ip:
-        logger.critical("❌ PANEL_IP not found in environment.")
+        logger.critical("❌ panel_ip not found in panel.yaml.")
         sys.exit(1)
 
     tf_vars = {
         "panel_ip": panel_ip,
-        "ansible_inventory_path": str(ANSIBLE_DIR / 'inventory/bot.ini'),
     }
     
     target = BOT_DNS_TF_DIR / "tg-bot.auto.tfvars.json"

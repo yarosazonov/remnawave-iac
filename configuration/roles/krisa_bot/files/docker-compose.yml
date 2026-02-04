@@ -4,7 +4,7 @@ services:
     container_name: krisa-bot
     hostname: krisa-bot
     ports:
-      - "127.0.0.1:4000:4000"
+      - "127.0.0.1:${PORT}:${PORT}"
     extra_hosts:
       # we need to go through caddy to bypass panel's X headers check
       # so we set to resolve panel domain to host gateway to route traffic locally

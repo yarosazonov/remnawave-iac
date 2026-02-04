@@ -14,6 +14,16 @@
   hosts: remnawave_panel
   become: true
 
+  vars_files:
+    - "../../config/panel.yaml"
+  
+  # To avoid collisons with panel.yaml vars
+  pre_tasks:
+    - name: Load Bot Config
+      include_vars:
+        file: "../../config/bot.yaml"
+        name: bot_config
+
   vars:
     docker_arch_map:
       x86_64: amd64
@@ -21,7 +31,12 @@
     # List of users to add to the docker group
     docker_users:
       - "{{ ansible_user }}"
-      - "{{ lookup('ansible.builtin.env', 'ADMIN_USERNAME') | default('admin', true) }}"
+      - "{{ server.admin.username }}"
+
+    # Derived variables
+    panel_domain: "{{ domain.panel_subdomain }}.{{ domain.zone }}"
+    panel_url: "https://{{ panel_domain }}"
+    subpage_domain: "{{ domain.sub_subdomain }}.{{ domain.zone }}"
 
   roles:
     # Default ufw setup (incoming/outgoing + ssh).
@@ -35,5 +50,5 @@
     - remna_panel/caddy
     - remna_panel/creds
     - role: remna_panel/subpage
-      when: sub_domain | default('') | length > 0
+      when: domain.sub_subdomain | default('') | length > 0
     - reboot

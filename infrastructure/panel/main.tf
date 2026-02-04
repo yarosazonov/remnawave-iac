@@ -28,15 +28,20 @@ provider "vultr" {
 provider "cloudflare" {
 }
 
+# Load panel configuration from YAML
+locals {
+  panel_config = yamldecode(file("${path.module}/../../config/panel.yaml"))
+}
+
 # Reuse bootstrap script
 data "template_file" "user_data" {
   template = file("${path.module}/../scripts/bootstrap.sh") # infrastructure/panel -> infrastructure -> scripts
   vars = {
-    admin_username     = var.admin_username
-    admin_pub_key      = file("${var.admin_key_path}.pub")
+    admin_username     = local.panel_config.server.admin.username
+    admin_pub_key      = file("${local.panel_config.server.admin.key_path}.pub")
     ansible_username   = var.ansible_username
     ansible_pub_key    = file("${var.ansible_key_path}.pub")
-    ansible_allowed_ip = var.ansible_allowed_ip
+    ansible_allowed_ip = local.panel_config.server.ansible_allowed_ip != null ? local.panel_config.server.ansible_allowed_ip : ""
   }
 }
 
@@ -44,10 +49,6 @@ data "cloudflare_zone" "main" {
   filter = {
     name = local.panel_config.domain.zone
   }
-}
-
-locals {
-  panel_config = yamldecode(file("${path.module}/../../config/panel.yaml"))
 }
 
 resource "vultr_instance" "panel" {
@@ -105,8 +106,6 @@ remna-panel ansible_host=${vultr_instance.panel.main_ip}
 [remnawave_panel:vars]
 ansible_user=${var.ansible_username}
 ansible_ssh_private_key_file=${var.ansible_key_path}
-panel_domain=${local.panel_config.domain.panel_subdomain}.${local.panel_config.domain.zone}
-sub_domain=${local.panel_config.domain.sub_subdomain != "" ? "${local.panel_config.domain.sub_subdomain}.${local.panel_config.domain.zone}" : ""}
 EOT
   file_permission = "0644"
 }

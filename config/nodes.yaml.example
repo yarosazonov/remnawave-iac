@@ -21,6 +21,19 @@ domain:
   zone: example.com
   panel_domain: panel.example.com
 
+settings:
+  node_port: 2234
+  config_profile_uuid: ""
+  active_inbounds: []
+  # IP of monitoring server for node_exporter and cAdvisor firewall rules (optional)
+  monitoring_ip: ""
+  # Security feature: If running Ansible from a server with static IP, specify it here to restrict SSH access
+  ansible_allowed_ip: ""
+  # Admin user for SSH access to servers
+  admin:
+    username: "admin"
+    key_path: "/path/to/ssh/key"
+
 # Node Groups
 # Define clusters of nodes by region.
 # id: Used for hostname generation (remna-node-{id}-{index})

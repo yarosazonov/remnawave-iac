@@ -44,13 +44,13 @@ def run_backup(backup_type: str) -> None:
     Args:
         backup_type: 'panel' or 'krisa-bot'
     """
-    bot_token = os.environ.get('BOT_TOKEN')
-    admin_id = os.environ.get('ADMIN_ID')
+    bot_token = os.environ.get('BACKUP_BOT_TOKEN')
+    admin_id = os.environ.get('BACKUP_BOT_ADMIN_ID')
     backup_password = os.environ.get('BACKUP_PASSWORD')
     retention_days = int(os.environ.get('BACKUP_RETENTION_DAYS', '7'))
     
     if not all([bot_token, admin_id, backup_password]):
-        logger.error("Missing required env vars: BOT_TOKEN, ADMIN_ID, BACKUP_PASSWORD")
+        logger.error("Missing required env vars: BACKUP_BOT_TOKEN, BACKUP_BOT_ADMIN_ID, BACKUP_PASSWORD")
         return
     
     date_str = datetime.now().strftime("%d-%m-%y")

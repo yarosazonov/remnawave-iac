@@ -24,17 +24,38 @@ terraform {
   }
 }
 
+# === LOCALS ===
+
+locals {
+  config = yamldecode(file("${path.module}/../../config/nodes.yaml"))
+
+  # Parse node groups into a map of instances
+  # Key: remna-node-{id}-{index}
+  # Value: { region: ..., plan: ... }
+  node_instances = merge([
+    for group in local.config.node_groups : {
+      for i in range(group.count) :
+      "remna-node-${group.id}-${i}" => {
+        region = group.region
+        plan   = group.plan
+      }
+    }
+  ]...)
+}
+
+# === DATA SOURCES ===
+
 # Bootstrap script
 data "template_file" "user_data" {
   template = file("${path.module}/../scripts/bootstrap.sh")
   vars = {
-    admin_username = var.admin_username
-    admin_pub_key  = file("${var.admin_key_path}.pub")
+    admin_username = local.config.settings.admin.username
+    admin_pub_key  = file("${local.config.settings.admin.key_path}.pub")
 
     # Injected by node-deploy.sh
     ansible_username   = var.ansible_username
     ansible_pub_key    = file("${var.ansible_key_path}.pub")
-    ansible_allowed_ip = var.ansible_allowed_ip
+    ansible_allowed_ip = local.config.settings.ansible_allowed_ip != null ? local.config.settings.ansible_allowed_ip : ""
   }
 }
 
@@ -71,23 +92,6 @@ provider "cloudflare" {
 }
 
 # === RESOURCES ===
-
-locals {
-  config = yamldecode(file("${path.module}/../../config/nodes.yaml"))
-
-  # Parse node groups into a map of instances
-  # Key: remna-node-{id}-{index}
-  # Value: { region: ..., plan: ... }
-  node_instances = merge([
-    for group in local.config.node_groups : {
-      for i in range(group.count) :
-      "remna-node-${group.id}-${i}" => {
-        region = group.region
-        plan   = group.plan
-      }
-    }
-  ]...)
-}
 
 # 1. Iterate over defined instances)
 resource "vultr_instance" "nodes" {
@@ -144,7 +148,7 @@ resource "restapi_object" "panel_nodes" {
     # "remna-node-jp-0" -> "jp-0"
     name    = format("%s-%s", split("-", each.key)[2], split("-", each.key)[3])
     address = each.value.main_ip
-    port    = var.node_port
+    port    = local.config.settings.node_port
 
     # "remna-node-jp-0" -> "JP"
     countryCode = upper(split("-", each.key)[2])
@@ -155,8 +159,8 @@ resource "restapi_object" "panel_nodes" {
     trafficResetDay         = 1
 
     configProfile = {
-      activeConfigProfileUuid = var.config_profile_uuid
-      activeInbounds          = var.active_inbounds
+      activeConfigProfileUuid = local.config.settings.config_profile_uuid
+      activeInbounds          = local.config.settings.active_inbounds
     }
   })
 
@@ -181,9 +185,9 @@ resource "terraform_data" "node_config_hash" {
   for_each = local.node_instances
 
   input = jsonencode({
-    port            = var.node_port
-    config_profile  = var.config_profile_uuid
-    active_inbounds = var.active_inbounds
+    port            = local.config.settings.node_port
+    config_profile  = local.config.settings.config_profile_uuid
+    active_inbounds = local.config.settings.active_inbounds
     # Trigger replacement on change ensuring ip changes are picked up
     vultr_id = vultr_instance.nodes[each.key].id
   })

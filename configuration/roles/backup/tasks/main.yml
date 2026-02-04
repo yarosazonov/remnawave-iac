@@ -44,4 +44,4 @@
     src: backup-krisa-bot.cron.j2
     dest: /etc/cron.d/krisa-bot-backup
     mode: "0644"
-  when: (krisa_bot_backup | default(lookup('ansible.builtin.env', 'KRISA_BOT_ENABLED') | default('false', true) | bool, true)) | bool
+  when: krisa_bot_backup | bool

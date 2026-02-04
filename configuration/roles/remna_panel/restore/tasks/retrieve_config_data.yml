@@ -1,7 +1,7 @@
 ---
 - name: Get Config Profiles
   ansible.builtin.uri:
-    url: "https://{{ panel_domain }}/api/config-profiles"
+    url: "{{ panel_url }}/api/config-profiles"
     method: GET
     headers:
       Authorization: "Bearer {{ remnawave_api_token }}"
@@ -15,22 +15,20 @@
     inbound_uuids: "{{ (profiles_response.json.response.configProfiles | first).inbounds | map(attribute='uuid') | list }}"
   when: profiles_response.json.response.configProfiles | length > 0
 
-- name: Write CONFIG_PROFILE_UUID to .env
+- name: Write CONFIG_PROFILE_UUID to nodes.yaml
   ansible.builtin.lineinfile:
-    path: "{{ playbook_dir }}/../../.env"
-    regexp: "^CONFIG_PROFILE_UUID="
-    line: "CONFIG_PROFILE_UUID='{{ profile_uuid }}'"
-    create: true
+    path: "{{ playbook_dir }}/../../config/nodes.yaml"
+    regexp: "^(\\s*)config_profile_uuid:"
+    line: '  config_profile_uuid: "{{ profile_uuid }}"'
   delegate_to: localhost
   become: false
   when: profile_uuid is defined
 
-- name: Write ACTIVE_INBOUNDS to .env
+- name: Write ACTIVE_INBOUNDS to nodes.yaml
   ansible.builtin.lineinfile:
-    path: "{{ playbook_dir }}/../../.env"
-    regexp: "^ACTIVE_INBOUNDS="
-    line: "ACTIVE_INBOUNDS='{{ inbound_uuids | to_json }}'"
-    create: true
+    path: "{{ playbook_dir }}/../../config/nodes.yaml"
+    regexp: "^(\\s*)active_inbounds:"
+    line: "  active_inbounds: {{ inbound_uuids | to_json }}"
   delegate_to: localhost
   become: false
   when: inbound_uuids is defined

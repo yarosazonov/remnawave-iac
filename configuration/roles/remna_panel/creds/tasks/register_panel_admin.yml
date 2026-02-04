@@ -1,12 +1,12 @@
 ---
 - name: Authenticate (Login)
   ansible.builtin.uri:
-    url: "https://{{ panel_domain }}/api/auth/login"
+    url: "{{ panel_url }}/api/auth/login"
     method: POST
     body_format: json
     headers:
-      Origin: "https://{{ panel_domain }}"
-      Referer: "https://{{ panel_domain }}/login"
+      Origin: "{{ panel_url }}"
+      Referer: "{{ panel_url }}/login"
     body:
       username: "{{ lookup('ansible.builtin.env', 'PANEL_ADMIN_USERNAME') | default('admin', true) }}"
       password: "{{ lookup('ansible.builtin.env', 'PANEL_ADMIN_PASSWORD') }}"
@@ -19,12 +19,12 @@
 
 - name: Register if login failed
   ansible.builtin.uri:
-    url: "https://{{ panel_domain }}/api/auth/register"
+    url: "{{ panel_url }}/api/auth/register"
     method: POST
     body_format: json
     headers:
-      Origin: "https://{{ panel_domain }}"
-      Referer: "https://{{ panel_domain }}/login"
+      Origin: "{{ panel_url }}"
+      Referer: "{{ panel_url }}/login"
     body:
       username: "{{ lookup('ansible.builtin.env', 'PANEL_ADMIN_USERNAME') | default('admin', true) }}"
       password: "{{ lookup('ansible.builtin.env', 'PANEL_ADMIN_PASSWORD') }}"

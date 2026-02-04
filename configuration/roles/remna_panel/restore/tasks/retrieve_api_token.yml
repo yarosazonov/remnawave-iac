@@ -1,10 +1,10 @@
 ---
 - name: Get existing API tokens
   ansible.builtin.uri:
-    url: "https://{{ panel_domain }}/api/tokens"
+    url: "{{ panel_url }}/api/tokens"
     method: GET
     headers:
-      Origin: "https://{{ panel_domain }}"
+      Origin: "{{ panel_url }}"
       Authorization: "Bearer {{ auth_token }}"
       X-Remnawave-Client-Type: "browser"
     status_code: 200

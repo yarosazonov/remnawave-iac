@@ -14,8 +14,61 @@ server:
   region: ams
   plan: vhf-1c-1gb
   hostname: remna-panel
+  # panel_ip will be automatically populated during deployment
+  panel_ip:
+  # Security feature: If running Ansible from a server with static IP, specify it here to restrict SSH access
+  ansible_allowed_ip: ""
+  # Admin user for SSH access to servers
+  admin:
+    username: "admin"
+    key_path: "/path/to/ssh/key"
 
 domain:
   zone: example.com
   panel_subdomain: panel
+  # Subpage will be created only if this var is set
   sub_subdomain: sub
+
+app:
+  # App & Metrics ports
+  port: 3000
+  metrics_port: 3001
+  redis:
+    host: remnawave-redis
+    port: 6379
+  # Possible values: max (start instances on all cores), number (start instances on number of cores), -1 (start instances on all cores - 1)
+  # !!! Do not set this value more than physical cores count in your machine !!!
+  # Review documentation: https://docs.rw/docs/install/environment-variables#scaling-api
+  api_instances: 1
+  docs:
+    enabled: false
+    swagger_path: "/docs"
+    scalar_path: "/scalar"
+  cors:
+    # Used by CORS, you can leave it as * or place your domain there
+    frontend_domain: "*"
+
+notifications:
+  webhook:
+    # Enable webhook notifications (true/false, defaults to false if not set or empty)
+    enabled: false
+    bandwidth_usage:
+      enabled: false
+      # Only in ASC order (example: [60, 80]), must be valid array of integer(min: 25, max: 95) numbers. No more than 5 values.
+      thresholds: [60, 80]
+    inactive_users:
+      # Not connected users notification (webhook, telegram)
+      enabled: false
+      # Only in ASC order (example: [6, 12, 24]), must be valid array of integer(min: 1, max: 168) numbers. No more than 3 values.
+      # Each value represents HOURS passed after user creation (user.createdAt)
+      after_hours: [6, 24, 48]
+  telegram:
+    enabled: false
+    chats:
+      users: "change_me"
+      nodes: "change_me"
+      crm: "change_me"
+    threads:
+      users: ""
+      nodes: ""
+      crm: ""

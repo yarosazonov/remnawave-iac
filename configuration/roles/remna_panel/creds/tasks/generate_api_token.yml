@@ -1,11 +1,11 @@
 ---
 - name: Get existing API tokens
   ansible.builtin.uri:
-    url: "https://{{ panel_domain }}/api/tokens"
+    url: "{{ panel_url }}/api/tokens"
     method: GET
     headers:
-      Origin: "https://{{ panel_domain }}"
-      Referer: "https://{{ panel_domain }}/login"
+      Origin: "{{ panel_url }}"
+      Referer: "{{ panel_url }}/login"
       Authorization: "Bearer {{ auth_token }}"
       X-Remnawave-Client-Type: "browser"
     status_code: 200
@@ -22,12 +22,12 @@
 
 - name: Generate API Token for Subscription Page
   ansible.builtin.uri:
-    url: "https://{{ panel_domain }}/api/tokens"
+    url: "{{ panel_url }}/api/tokens"
     method: POST
     body_format: json
     headers:
-      Origin: "https://{{ panel_domain }}"
-      Referer: "https://{{ panel_domain }}/login"
+      Origin: "{{ panel_url }}"
+      Referer: "{{ panel_url }}/login"
       Authorization: "Bearer {{ auth_token }}"
       X-Remnawave-Client-Type: "browser"
     body:

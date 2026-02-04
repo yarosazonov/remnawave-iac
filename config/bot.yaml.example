@@ -1,5 +1,43 @@
 # Bot Configuration
 
 domain:
-  zone: krisavpn.vip
-  bot_subdomain: bot2
+  zone: example.com
+  bot_subdomain: bot
+
+misc:
+  logging_lvl: INFO
+  support_link: "https://t.me/support"
+  channel_tag: "@channel_tag"
+  available_servers:
+    - "🇳🇱 Netherlands"
+    - "🇺🇸 USA"
+
+app:
+  port: 4000
+
+remna:
+  api_url: "https://panel.example.com/api"
+  # Squads to assign to users upon trial or subscription renewal
+  squads:
+    - "UUID-OF-SQUAD"
+
+trial:
+  days: 3
+  traffic_gb: 25
+
+subscription:
+  monthly_traffic_gb: 250
+  one_month:
+    enabled: true
+    price: 100
+  three_months:
+    enabled: true
+    price: 250
+  six_months:
+    enabled: true
+    price: 500
+
+yookassa:
+  return_url: "https://t.me/your_bot"
+  # Can be empty
+  default_receipt_email: 

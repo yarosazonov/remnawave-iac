@@ -6,8 +6,8 @@ tls internal
 respond 204
 }
 
-{% if sub_domain | default('') | length > 0 %}
-https://{{ sub_domain }} {
+{% if domain.sub_subdomain | default('') | length > 0 %}
+https://{{ subpage_domain }} {
 reverse_proxy * http://remnawave-subscription-page:3010
 }
 {% endif %}

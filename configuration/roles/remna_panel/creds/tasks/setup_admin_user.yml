@@ -7,7 +7,7 @@
 
 - name: Get Existing Users
   ansible.builtin.uri:
-    url: "https://{{ panel_domain }}/api/users"
+    url: "{{ panel_url }}/api/users"
     method: GET
     headers:
       Authorization: "Bearer {{ panel_api_token }}"
@@ -23,7 +23,7 @@
 
 - name: Create Admin User
   ansible.builtin.uri:
-    url: "https://{{ panel_domain }}/api/users"
+    url: "{{ panel_url }}/api/users"
     method: POST
     body_format: json
     headers:

@@ -3,7 +3,7 @@
 
 - name: Get Existing Squads
   ansible.builtin.uri:
-    url: "https://{{ panel_domain }}/api/internal-squads"
+    url: "{{ panel_url }}/api/internal-squads"
     method: GET
     headers:
       Authorization: "Bearer {{ panel_api_token }}"
@@ -20,7 +20,7 @@
 
 - name: Update Default-Squad with first inbound
   ansible.builtin.uri:
-    url: "https://{{ panel_domain }}/api/internal-squads"
+    url: "{{ panel_url }}/api/internal-squads"
     method: PATCH
     body_format: json
     headers:
@@ -36,21 +36,12 @@
   until: update_default_squad_response.status == 200
   when: default_squad is not none
 
-- name: Check if KRISA_BOT_SQUADS is set
-  command: grep -E "^KRISA_BOT_SQUADS=['\"]?[a-zA-Z0-9]" "{{ playbook_dir }}/../../.env"
-  delegate_to: localhost
-  become: false
-  register: krisa_squads_check
-  failed_when: false
-  changed_when: false
-
-- name: Write Default Squad UUID to .env
+- name: Write Default Squad UUID to bot.yaml
   lineinfile:
-    path: "{{ playbook_dir }}/../../.env"
-    regexp: "^KRISA_BOT_SQUADS="
-    line: "KRISA_BOT_SQUADS='{{ default_squad.uuid }}'"
-    create: yes
-  when: default_squad is not none and krisa_squads_check.rc != 0
+    path: "{{ playbook_dir }}/../../config/bot.yaml"
+    insertafter: '^\s*squads:$'
+    line: '    - "{{ default_squad.uuid }}"'
+  when: default_squad is not none and not bot_config.remna.squads | default([], true)
   delegate_to: localhost
   become: false
 
@@ -61,7 +52,7 @@
 
 - name: Create Admin-Squad
   ansible.builtin.uri:
-    url: "https://{{ panel_domain }}/api/internal-squads"
+    url: "{{ panel_url }}/api/internal-squads"
     method: POST
     body_format: json
     headers:

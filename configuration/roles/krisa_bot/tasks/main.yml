@@ -1,7 +1,7 @@
 ---
 - name: Get Admin Username
   ansible.builtin.set_fact:
-    admin_username: "{{ lookup('ansible.builtin.env', 'ADMIN_USERNAME') }}"
+    admin_username: "{{ server.admin.username }}"
 
 - name: Get admin user info
   ansible.builtin.getent:
