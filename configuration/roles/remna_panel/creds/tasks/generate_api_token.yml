@@ -51,6 +51,7 @@
   become: false
   when: remnawave_api_token is defined
 
+# Set the default API token to Krisa bot if the token is empty.
 - name: Check if KRISA_BOT_REMNAWAVE_API_TOKEN is set
   command: grep -E "^KRISA_BOT_REMNAWAVE_API_TOKEN=['\"]?[a-zA-Z0-9]" "{{ playbook_dir }}/../../.env"
   delegate_to: localhost

@@ -13,6 +13,3 @@
 
 - name: Setup Squads
   ansible.builtin.include_tasks: setup_squads.yml
-
-- name: Setup Admin User
-  ansible.builtin.include_tasks: setup_admin_user.yml
