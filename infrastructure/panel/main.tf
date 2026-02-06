@@ -29,7 +29,7 @@ provider "cloudflare" {
 }
 
 # Load panel configuration from YAML
-locals {
+locals{
   panel_config = yamldecode(file("${path.module}/../../config/panel.yaml"))
 }
 

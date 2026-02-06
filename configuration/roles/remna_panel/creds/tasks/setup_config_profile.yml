@@ -20,8 +20,16 @@
 
 - name: Set Private Key Fact
   ansible.builtin.set_fact:
-    generated_private_key_1: "{{ x25519_response.json.response.keypairs[0].privateKey }}"
-    generated_private_key_2: "{{ x25519_response.json.response.keypairs[1].privateKey }}"
+    privateKey1: "{{ x25519_response.json.response.keypairs[0].privateKey }}"
+    privateKey2: "{{ x25519_response.json.response.keypairs[1].privateKey }}"
+    privateKey3: "{{ x25519_response.json.response.keypairs[2].privateKey }}"
+    privateKey4: "{{ x25519_response.json.response.keypairs[3].privateKey }}"
+    privateKey5: "{{ x25519_response.json.response.keypairs[4].privateKey }}"
+    privateKey6: "{{ x25519_response.json.response.keypairs[5].privateKey }}"
+    privateKey7: "{{ x25519_response.json.response.keypairs[6].privateKey }}"
+    privateKey8: "{{ x25519_response.json.response.keypairs[7].privateKey }}"
+    privateKey9: "{{ x25519_response.json.response.keypairs[8].privateKey }}"
+    privateKey10: "{{ x25519_response.json.response.keypairs[9].privateKey }}"
 
 # Patching the Default-Profile with our template
 - name: Get Config Profiles
@@ -49,15 +57,12 @@
       Authorization: "Bearer {{ panel_api_token }}"
     body:
       uuid: "{{ default_profile.uuid }}"
-      config: "{{ lookup('template', 'config.json.j2') | from_json }}"
+      config: "{{ lookup('template', playbook_dir ~ '/../../config/xray.json.j2') | from_json }}"
     status_code: 200
   register: update_profile_response
   retries: 5
   delay: 3
   until: update_profile_response.status == 200
-  vars:
-    privateKey1: "{{ generated_private_key_1 }}"
-    privateKey2: "{{ generated_private_key_2 }}"
 
 - name: Capture Profile UUID and Inbounds
   ansible.builtin.set_fact:

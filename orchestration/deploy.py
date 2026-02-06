@@ -198,10 +198,19 @@ def run_ansible_playbook(playbook_name: str, limit_arg: str = "", extra_vars: li
         logger.critical("❌ Ansible execution failed.")
         sys.exit(1)
 
-def generate_tfvars(service_name: str) -> None:
-    """Generic function to generate tfvars."""
-    tf_dir = INFRA_DIR / service_name
-    inventory_file = f"{service_name}.ini"
+def generate_tfvars(tf_module_name: str) -> None:
+    """
+    Generic function to generate tfvars.
+
+    Creates a '{tf_module_name}.auto.tfvars.json' file in the respective module directory
+
+    Args:
+        tf_module_name (str):
+            The name of the terraform module.
+            Available options: 'panel', 'nodes'.
+    """
+    tf_dir = INFRA_DIR / tf_module_name
+    inventory_file = f"{tf_module_name}.ini"
     
     try:
         tf_vars = {
@@ -211,20 +220,20 @@ def generate_tfvars(service_name: str) -> None:
         }
 
         # Specific logic for nodes
-        if service_name == "nodes":
+        if tf_module_name == "nodes":
              os.environ["TF_VAR_PANEL_API_TOKEN"] = os.environ["PANEL_API_TOKEN"]
 
-        target = tf_dir / f"{service_name}.auto.tfvars.json"
+        target = tf_dir / f"{tf_module_name}.auto.tfvars.json"
         with open(target, "w") as f:
             json.dump(tf_vars, f, indent=2)
 
         logger.debug(f"Generated {target}")
 
     except KeyError as e:
-        logger.critical(f"❌ Missing required env var for {service_name}: {e}")
+        logger.critical(f"❌ Missing required env var for {tf_module_name}: {e}")
         sys.exit(1)
     except Exception as e:
-        logger.critical(f"❌ Error generating {service_name} tfvars: {e}")
+        logger.critical(f"❌ Error generating {tf_module_name} tfvars: {e}")
         sys.exit(1)
 
 def run_terraform_plan_and_apply(cwd: Path, destroy: bool = False) -> None:
