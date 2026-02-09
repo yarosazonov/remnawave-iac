@@ -6,8 +6,8 @@ services:
     ports:
       - "127.0.0.1:${PORT}:${PORT}"
     extra_hosts:
-      # we need to go through caddy to bypass panel's X headers check
-      # so we set to resolve panel domain to host gateway to route traffic locally
+       # we need to go through caddy to bypass panel's X headers check
+       # so we set to resolve panel domain to host gateway to route traffic locally
       - "${REMNAWAVE_PANEL_DOMAIN}:host-gateway"
     env_file:
       - .env

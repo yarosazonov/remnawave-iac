@@ -60,17 +60,38 @@ def restore_sqlite(dump_file: Path) -> bool:
     # Copy backup into container
     copy_cmd = ['docker', 'cp', str(dump_file), f'{SQLITE_CONTAINER}:{temp_path}']
     
-    # Move to target location (overwrites existing)
-    move_cmd = [
-        'docker', 'exec', SQLITE_CONTAINER,
-        'mv', temp_path, SQLITE_DB_PATH
+    # Use python to restore safely (handles locks/WAL/permissions natively)
+    restore_script = (
+        f"import sqlite3; "
+        f"bck = sqlite3.connect('{temp_path}'); "
+        f"live = sqlite3.connect('{SQLITE_DB_PATH}'); "
+        f"bck.backup(live); "
+        f"live.close(); bck.close()"
+    )
+    
+    restore_cmd = [
+        'docker', 'exec', '-u', '0', SQLITE_CONTAINER,
+        'python', '-c', restore_script
+    ]
+
+    cleanup_cmd = [
+        'docker', 'exec', '-u', '0', SQLITE_CONTAINER,
+        'rm', temp_path
     ]
     
     try:
         subprocess.run(copy_cmd, check=True, capture_output=True)
-        subprocess.run(move_cmd, check=True, capture_output=True)
+        subprocess.run(restore_cmd, check=True, capture_output=True)
         logger.info("SQLite restore successful")
         return True
     except subprocess.CalledProcessError as e:
         logger.error(f"SQLite restore failed: {e}")
+        if e.stderr:
+            logger.error(f"STDERR: {e.stderr.decode()}")
         return False
+    finally:
+        # Always cleanup temp file
+        try:
+            subprocess.run(cleanup_cmd, check=True, capture_output=True)
+        except subprocess.CalledProcessError:
+            logger.warning(f"Failed to cleanup temp file: {temp_path}")

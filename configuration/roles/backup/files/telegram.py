@@ -10,6 +10,11 @@ logger = logging.getLogger(__name__)
 
 def send_document(token: str, chat_id: str, file_path: Path, caption: str = "") -> bool:
     """Send a document to Telegram chat via Bot API."""
+    # strip whitespace, quotes, and "bot" prefix
+    token = token.strip().strip("'").strip('"')
+    if token.lower().startswith('bot'):
+        token = token[3:]
+        
     url = f"https://api.telegram.org/bot{token}/sendDocument"
     
     try:

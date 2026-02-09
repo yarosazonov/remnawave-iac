@@ -16,7 +16,7 @@
     status_code: [200, 201, 400, 403, 500, 502, 503]
   register: probe_response
   until: probe_response.status in [200, 201, 400, 403]
-  retries: 60
+  retries: 30
   delay: 1
   when: new_panel_secrets | default(false) | bool
 
@@ -70,7 +70,7 @@
     status_code: [200, 201, 400, 403, 500, 502, 503]
   register: login_response
   until: login_response.status in [200, 201]
-  retries: 60
+  retries: 30
   delay: 1
   when: not (new_panel_secrets | default(false) | bool)
 

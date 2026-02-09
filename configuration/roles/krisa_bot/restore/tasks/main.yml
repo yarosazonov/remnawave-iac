@@ -1,0 +1,60 @@
+---
+# Restore role - runs restore for krisa bot
+
+- name: Copy backup file to server
+  ansible.builtin.copy:
+    src: "{{ backup_file }}"
+    dest: /opt/remnawave-backups/data/
+    mode: "0644"
+
+- name: Get backup filename
+  ansible.builtin.set_fact:
+    backup_filename: "{{ backup_file | basename }}"
+
+- name: Build backup Docker image
+  community.docker.docker_image:
+    name: remnawave-backup
+    tag: latest
+    source: build
+    build:
+      path: /opt/remnawave-backups/scripts
+    state: present
+    force_source: true
+
+- name: Restart Krisa Bot to clear DNS cache
+  community.docker.docker_container:
+    name: "{{ bot_container_name }}"
+    state: started
+    restart: true
+
+- name: Wait for Krisa Bot to be ready
+  community.docker.docker_container_info:
+    name: "{{ bot_container_name }}"
+  register: bot_info
+  until: bot_info.container.State.Running | default(false)
+  retries: 30
+  delay: 1
+
+- name: Run Restore Command
+  ansible.builtin.shell:
+    cmd: |
+      docker run --rm \
+      -e BACKUP_PASSWORD={{ lookup('ansible.builtin.env', 'BACKUP_PASSWORD') }} \
+      -v /var/run/docker.sock:/var/run/docker.sock \
+      -v /opt/remnawave-backups/data:/opt/remnawave-backups/data \
+      remnawave-backup:latest restore --krisa-bot /opt/remnawave-backups/data/{{ backup_filename }}
+  register: restore_result
+  changed_when: true
+
+- name: Display Restore Output
+  ansible.builtin.debug:
+    msg:
+      - "STDOUT: {{ restore_result.stdout_lines }}"
+      - "STDERR: {{ restore_result.stderr_lines }}"
+
+- name: Restart Krisa Bot Container
+  community.docker.docker_container:
+    name: "{{ bot_container_name }}"
+    state: started
+    restart: true
+    restart_policy: always

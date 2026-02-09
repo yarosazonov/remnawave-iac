@@ -31,7 +31,9 @@
     subpage_domain: "{{ domain.sub_subdomain }}.{{ domain.zone }}"
 
   roles:
-    - ufw
+    - role: ufw
+      vars:
+        ufw_open_ports: [80, 443]
     - docker
     - remna_panel/setup
     - backup

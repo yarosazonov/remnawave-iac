@@ -30,7 +30,7 @@
 - name: Deploy backup environment file
   ansible.builtin.template:
     src: backup.env.j2
-    dest: /opt/remnawave-backups/scripts/backup.env
+    dest: /opt/remnawave-backups/scripts/.env
     mode: "0600"
 
 - name: Deploy backup cron job
@@ -38,10 +38,11 @@
     src: backup.cron.j2
     dest: /etc/cron.d/remnawave-backup
     mode: "0644"
+  when: remnawave_backup | default(false) | bool
 
 - name: Deploy Krisa Bot backup cron job
   ansible.builtin.template:
     src: backup-krisa-bot.cron.j2
     dest: /etc/cron.d/krisa-bot-backup
     mode: "0644"
-  when: krisa_bot_backup | bool
+  when: krisa_bot_backup | default(false) | bool

@@ -425,10 +425,19 @@ def handle_bot(args):
 
     # Map friendly names to ansible roles
     bot_map = {
-        "krisa": "krisa_bot"
+        "krisa": "krisa_bot/setup"
+    }
+
+    bot_container_map = {
+        "krisa": "krisa-bot"
     }
 
     bot_role = bot_map.get(args.bot_name)
+    bot_container = bot_container_map.get(args.bot_name)
+    
+    # Define restore role based on bot name (assuming pattern krisa_bot/restore)
+    bot_restore_role = f"{bot_role.split('/')[0]}/restore"
+
     if not bot_role:
         logger.critical(f"❌ Unknown bot name: {args.bot_name}. Available: {list(bot_map.keys())}")
         sys.exit(1)
@@ -482,13 +491,34 @@ def handle_bot(args):
         run_ansible_playbook('bot-deploy.yml', extra_vars=[f"bot_role={bot_role}"])
         logger.info(f"🎉 {args.bot_name} Bot Deployment Complete!")
 
+    elif args.action == "restore":
+        if not args.backup_file:
+            logger.critical("❌ Backup file required for restore. Use: bot restore <backup_file>")
+            sys.exit(1)
+        
+        backup_path = OPS_DIR / "backups" / args.backup_file
+        if not backup_path.exists():
+            logger.critical(f"❌ Backup file not found: {backup_path}")
+            sys.exit(1)
+
+        # 1. Deploy Bot DNS (same as deploy)
+        logger.info("🌍 Managing Bot DNS Record...")
+        run_terraform_plan_and_apply(BOT_DNS_TF_DIR)
+
+        logger.info(f"🔄 Restoring {args.bot_name} Bot from: {args.backup_file}")
+        
+        # We need bot_role for full setup during restore
+        
+        run_ansible_playbook('bot-restore.yml', extra_vars=[f"backup_file={backup_path}", f"bot_container_name={bot_container}", f"bot_role={bot_role}", f"bot_restore_role={bot_restore_role}"])
+        logger.info(f"🎉 {args.bot_name} Bot Restore Complete!")
+
 def handle_backup(args):
     """Orchestrate Backup Setup."""
     logger.info("🔹 Mode: BACKUP")
 
     if args.action == "setup":
         logger.info("💾 Setting up Backups...")
-        extra_vars = []
+        extra_vars = ["remnawave_backup=true"]
         if args.krisa:
             logger.info("   + Including Krisa Bot Backup")
             extra_vars.append("krisa_bot_backup=true")
@@ -529,8 +559,9 @@ def main():
 
     # Bot Subcommand
     bot_parser = subparsers.add_parser("bot", help="Deploy Bots")
-    bot_parser.add_argument("action", choices=["deploy", "destroy"], help="Action to perform")
+    bot_parser.add_argument("action", choices=["deploy", "destroy", "restore"], help="Action to perform")
     bot_parser.add_argument("bot_name", nargs="?", default="krisa", help="Name of the bot to deploy (default: krisa)")
+    bot_parser.add_argument("backup_file", nargs="?", help="Backup file for restore (in ops/backups/)")
     bot_parser.set_defaults(func=handle_bot)
 
     # Backup Subcommand

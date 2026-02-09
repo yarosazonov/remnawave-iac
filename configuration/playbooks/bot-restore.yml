@@ -1,0 +1,17 @@
+---
+- name: Restore Krisa Bot from Backup
+  hosts: remnawave_panel
+  become: true
+  gather_facts: false
+
+  vars_files:
+    - "../../config/panel.yaml"
+    - "../../config/bot.yaml"
+
+  vars:
+    bot_domain: "{{ domain.bot_subdomain }}.{{ domain.zone }}"
+
+  roles:
+    - role: "{{ bot_role }}"
+    - role: backup
+    - role: "{{ bot_restore_role }}"

@@ -5,13 +5,14 @@ help:
 	@echo "  make panel-deploy   - Deploy fresh Panel"
 	@echo "  make panel-reboot   - Reboot Panel"
 	@echo "  make panel-destroy  - Destroy Panel"
-	@echo "  make panel-restore BACKUP=<backup_name> - Deploy Panel from backup (panel secrets present in .env)"
-	@echo "  make panel-restore BACKUP=<backup_name> NEW_PANEL_SECRETS=1 - Deploy Panel from backup (generate new panel secrets)"
+	@echo "  make panel-restore BACKUP=<backup_name> - Deploy Panel from BACKUP (panel secrets present in .env)"
+	@echo "  make panel-restore BACKUP=<backup_name> NEW_SECRETS=1 - Deploy Panel from BACKUP (generate new panel secrets)"
 	@echo "  make node-deploy    - Deploy Nodes"
 	@echo "  make node-reboot    - Reboot Nodes"
 	@echo "  make node-destroy   - Destroy Nodes"
-	@echo "  make krisa-bot-deploy - Deploy Krisa Bot"
-	@echo "  make krisa-bot-destroy - Destroy Krisa Bot DNS"
+	@echo "  make bot-krisa-deploy - Deploy Krisa Bot"
+	@echo "  make bot-krisa-destroy - Destroy Krisa Bot DNS"
+	@echo "  make bot-krisa-restore BACKUP=<backup_name> - Restore Krisa Bot from BACKUP"
 	@echo "  make backup-setup   - Setup Daily Panel Backups (use KRISA=1 to include krisa bot)"
 	@echo "  make backup-force   - Force Backup Creation (use KRISA=1 to include krisa bot)"
 
@@ -19,7 +20,7 @@ panel-deploy:
 	.venv/bin/python orchestration/deploy.py panel deploy
 
 panel-restore:
-	.venv/bin/python orchestration/deploy.py panel restore $(BACKUP) $(if $(NEW_PANEL_SECRETS),--new-panel-secrets,)
+	.venv/bin/python orchestration/deploy.py panel restore $(BACKUP) $(if $(NEW_SECRETS),--new-panel-secrets,)
 
 panel-reboot:
 	.venv/bin/python orchestration/deploy.py panel reboot
@@ -36,11 +37,14 @@ node-reboot:
 node-destroy:
 	.venv/bin/python orchestration/deploy.py node destroy
 
-krisa-bot-deploy:
+bot-krisa-deploy:
 	.venv/bin/python orchestration/deploy.py bot deploy krisa
 
-krisa-bot-destroy:
+bot-krisa-destroy:
 	.venv/bin/python orchestration/deploy.py bot destroy krisa
+
+bot-krisa-restore:
+	.venv/bin/python orchestration/deploy.py bot restore krisa $(BACKUP)
 
 backup-setup:
 	.venv/bin/python orchestration/deploy.py backup setup $(if $(KRISA),--krisa,)

@@ -24,3 +24,22 @@
   delegate_to: localhost
   become: false
   when: remnawave_api_token is defined
+
+# Set the default API token to Krisa bot if the token is empty.
+- name: Check if KRISA_BOT_REMNAWAVE_API_TOKEN is set
+  command: grep -E "^KRISA_BOT_REMNAWAVE_API_TOKEN=['\"]?[a-zA-Z0-9]" "{{ playbook_dir }}/../../.env"
+  delegate_to: localhost
+  become: false
+  register: krisa_token_check
+  failed_when: false
+  changed_when: false
+
+- name: Write KRISA_BOT_REMNAWAVE_API_TOKEN to local .env
+  ansible.builtin.lineinfile:
+    path: "{{ playbook_dir }}/../../.env"
+    regexp: "^KRISA_BOT_REMNAWAVE_API_TOKEN="
+    line: "KRISA_BOT_REMNAWAVE_API_TOKEN='{{ remnawave_api_token }}'"
+    create: true
+  delegate_to: localhost
+  become: false
+  when: remnawave_api_token is defined and krisa_token_check.rc != 0
