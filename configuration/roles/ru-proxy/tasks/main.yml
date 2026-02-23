@@ -1,0 +1,33 @@
+---
+- name: Install Nginx
+  ansible.builtin.apt:
+    pkg:
+      - nginx
+      - libnginx-mod-stream
+    state: present
+    update_cache: yes
+
+- name: Ensure Nginx Stream & Mail modules are enabled
+  ansible.builtin.file:
+    src: /usr/share/nginx/modules-available/mod-stream.conf
+    dest: /etc/nginx/modules-enabled/50-mod-stream.conf
+    state: link
+  notify: Reload Nginx
+
+- name: Create Nginx Stream Config Directory
+  ansible.builtin.file:
+    path: /etc/nginx/stream.d
+    state: directory
+    mode: "0755"
+
+- name: Configure Nginx Stream Block
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+  notify: Reload Nginx
+
+- name: Ensure Nginx is started and enabled
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: yes

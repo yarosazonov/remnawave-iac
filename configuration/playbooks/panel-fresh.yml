@@ -1,6 +1,6 @@
 ---
 - name: Wait for Connectivity
-  hosts: remnawave_panel
+  hosts: remna_panel
   gather_facts: false
   tasks:
     - name: Wait for SSH to be available
@@ -11,12 +11,12 @@
         sleep: 1
 
 - name: Deploy Remnawave Panel
-  hosts: remnawave_panel
+  hosts: remna_panel
   become: true
 
   vars_files:
     - "../../config/panel.yaml"
-  
+
   # To avoid collisons with panel.yaml vars
   pre_tasks:
     - name: Load Bot Config

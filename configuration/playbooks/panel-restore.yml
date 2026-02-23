@@ -1,6 +1,6 @@
 ---
 - name: Wait for Connectivity
-  hosts: remnawave_panel
+  hosts: remna_panel
   gather_facts: false
   tasks:
     - name: Wait for SSH to be available
@@ -11,7 +11,7 @@
         sleep: 1
 
 - name: Deploy Remnawave Panel from Backup
-  hosts: remnawave_panel
+  hosts: remna_panel
   become: true
 
   vars_files:

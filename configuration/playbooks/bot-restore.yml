@@ -1,6 +1,6 @@
 ---
 - name: Restore Krisa Bot from Backup
-  hosts: remnawave_panel
+  hosts: remna_panel
   become: true
   gather_facts: false
 

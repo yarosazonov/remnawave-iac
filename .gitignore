@@ -12,7 +12,8 @@ terraform/state/
 *.tfvars.json
 
 # --- Ansible ---
-configuration/inventory/
+configuration/inventory/*
+!configuration/inventory/*.example
 .ansible/
 ops/.ansible/
 

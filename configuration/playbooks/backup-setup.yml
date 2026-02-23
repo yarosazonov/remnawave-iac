@@ -1,6 +1,6 @@
 ---
 - name: Setup Backups
-  hosts: remnawave_panel
+  hosts: remna_panel
   become: true
 
   vars:

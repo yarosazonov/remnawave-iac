@@ -284,7 +284,7 @@ def handle_panel(args):
 
     if args.action == "reboot":
         logger.info("🔄 Rebooting Panel...")
-        run_ansible_playbook('reboot.yml', limit_arg="remnawave_panel", extra_vars=["target_hosts=remnawave_panel"])
+        run_ansible_playbook('reboot.yml', limit_arg="remna_panel", extra_vars=["target_hosts=remna_panel"])
         return
 
     if args.action == "restore":

@@ -1,0 +1,27 @@
+---
+- name: Configure RU Proxy / Relay
+  hosts: ru-proxy
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - "../../config/panel.yaml"
+    - "../../config/nodes.yaml"
+
+  vars:
+    nl_node_address: "nl.krisavpn.vip"
+    nl_node_sni: "addons.mozilla.org"
+
+    docker_arch_map:
+      x86_64: "amd64"
+      aarch64: "arm64"
+    docker_users:
+      - "tree"
+  roles:
+    - role: ufw
+      vars:
+        ufw_open_ports: [22, 80, 443]
+    - ru-proxy
+    - docker
+    - node_exporter
+    - monitoring

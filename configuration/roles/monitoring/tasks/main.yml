@@ -1,0 +1,43 @@
+---
+- name: Allow Docker containers to reach Node Exporter
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "9100"
+    from_ip: "172.16.0.0/12"
+    comment: "Allow Docker containers to scrape Node Exporter"
+
+- name: Create Monitoring Directory
+  ansible.builtin.file:
+    path: /opt/monitoring
+    state: directory
+    mode: "0755"
+
+- name: Create Prometheus Config Directory
+  ansible.builtin.file:
+    path: /opt/monitoring/prometheus
+    state: directory
+    mode: "0755"
+
+- name: Create Grafana Storage Directory
+  ansible.builtin.file:
+    path: /opt/monitoring/grafana_data
+    state: directory
+    mode: "0777"
+
+- name: Configure Prometheus
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: /opt/monitoring/prometheus/prometheus.yml
+  notify: Restart Monitoring
+
+- name: Copy Docker Compose
+  ansible.builtin.copy:
+    src: docker-compose.yml
+    dest: /opt/monitoring/docker-compose.yml
+  notify: Restart Monitoring
+
+- name: Ensure Monitoring Stack is Running
+  community.docker.docker_compose_v2:
+    project_src: /opt/monitoring
+    state: present

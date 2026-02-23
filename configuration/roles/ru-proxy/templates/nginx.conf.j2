@@ -1,0 +1,44 @@
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections 4096;
+    use epoll;
+    multi_accept on;
+}
+
+stream {
+    # Connection tuning
+    proxy_connect_timeout 5s;
+    proxy_timeout 300s;
+    proxy_buffer_size 16k;
+
+    # Enable TCP optimizations
+    tcp_nodelay on;
+
+    # Force IPv4 resolution
+    resolver 1.1.1.1 ipv6=off;
+
+    # Map SNI to Upstream Address
+    map $ssl_preread_server_name $backend_addr {
+        {{ nl_node_sni }}    {{ nl_node_address }}:{{ nl_node_port | default('443') }};
+        {{ domain.sub_subdomain }}.{{ domain.zone }}      {{ server.panel_ip }}:443;
+        # Default fallback (optional, prevents error if no match)
+        default             127.0.0.1:443; 
+    }
+
+    # Multiplexer server (443)
+    server {
+        listen 443 reuseport;
+        proxy_pass $backend_addr;
+        ssl_preread on;
+    }
+}
+
+http {
+    # Basic HTTP block to satisfy nginx requirement or for local monitoring if needed
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+}

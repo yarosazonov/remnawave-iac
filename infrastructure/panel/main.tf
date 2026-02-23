@@ -29,7 +29,7 @@ provider "cloudflare" {
 }
 
 # Load panel configuration from YAML
-locals{
+locals {
   panel_config = yamldecode(file("${path.module}/../../config/panel.yaml"))
 }
 
@@ -100,10 +100,10 @@ resource "cloudflare_dns_record" "subscription" {
 resource "local_file" "ansible_inventory" {
   filename        = var.ansible_inventory_path
   content         = <<EOT
-[remnawave_panel]
+[remna_panel]
 remna-panel ansible_host=${vultr_instance.panel.main_ip}
 
-[remnawave_panel:vars]
+[remna_panel:vars]
 ansible_user=${var.ansible_username}
 ansible_ssh_private_key_file=${var.ansible_key_path}
 EOT

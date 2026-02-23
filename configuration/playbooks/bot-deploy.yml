@@ -1,6 +1,6 @@
 ---
 - name: Deploy Bot
-  hosts: remnawave_panel
+  hosts: remna_panel
   become: true
 
   vars_files:
