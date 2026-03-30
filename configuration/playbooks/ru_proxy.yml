@@ -1,6 +1,6 @@
 ---
 - name: Configure RU Proxy / Relay
-  hosts: ru-proxy
+  hosts: ru_proxy
   become: true
   gather_facts: true
 
@@ -21,7 +21,7 @@
     - role: ufw
       vars:
         ufw_open_ports: [22, 80, 443]
-    - ru-proxy
+    - ru_proxy
     - docker
     - node_exporter
     - monitoring
