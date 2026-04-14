@@ -21,7 +21,7 @@
     - role: ufw
       vars:
         ufw_open_ports: [22, 80, 443]
-    - ru_proxy
-    - docker
-    - node_exporter
-    - monitoring
+    - { role: ru_proxy, tags: ['proxy'] }
+    - { role: docker, tags: ['docker'] }
+    - { role: node_exporter, tags: ['monitoring'] }
+    - { role: monitoring, tags: ['monitoring'] }
